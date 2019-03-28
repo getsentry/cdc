@@ -30,7 +30,7 @@ class Publisher(object):
     }
 
     def __init__(self, configuration):
-        self.__backend = backends[configuration["backend"]["type"]](
+        self.__backend: PublisherBackend = backends[configuration["backend"]["type"]](
             configuration["backend"]["options"]
         )
 

@@ -34,7 +34,7 @@ class Source(object):
     }
 
     def __init__(self, configuration):
-        self.__backend = backends[configuration["backend"]["type"]](
+        self.__backend: SourceBackend = backends[configuration["backend"]["type"]](
             configuration["backend"]["options"]
         )
 
@@ -66,7 +66,7 @@ class Source(object):
         else:
             return None
 
-    def poll(self, timeout: float = None):
+    def poll(self, timeout: float):
         self.__backend.poll(timeout)
 
     def set_write_position(self, id: Id, position: Position):
