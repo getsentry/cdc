@@ -77,7 +77,7 @@ class Application(object):
                         logger.trace("There are no scheduled tasks to perform.")
                         break
 
-                    logger.debug("Executing scheduled task: %r", task)
+                    logger.trace("Executing scheduled task: %r", task)
                     task.callable()
 
                 # We might need to block here if there are not any more
@@ -112,8 +112,7 @@ class Application(object):
                 waiting_for.poll(timeout)
 
         except KeyboardInterrupt as e:
-            logger.info("Caught %r, Shutting down...", e)
-            logger.debug("Waiting for %s messages to flush...", len(self.publisher))
+            logger.debug("Caught %r, shutting down...", e)
+            logger.debug("Waiting for %s messages to flush and committing positions before exiting...", len(self.publisher))
             self.publisher.flush(60.0)
-            logger.debug("Committing positions...")
             self.source.commit_positions()

@@ -85,12 +85,13 @@ class Source(object):
         self.__flush_position = position
 
     def commit_positions(self):
-        logger.trace(
-            "Committing positions: write=%r, flush=%r",
+        logger.trace("Committing positions...")
+        self.__backend.commit_positions(self.__write_position, self.__flush_position)
+        logger.debug(
+            "Updated committed positions: write=%r, flush=%r",
             self.__write_position,
             self.__flush_position,
         )
-        self.__backend.commit_positions(self.__write_position, self.__flush_position)
         self.__last_commit_flush_id = self.__flush_id
         self.__last_commit_datetime = datetime.now()
 
