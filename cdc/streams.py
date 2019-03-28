@@ -80,7 +80,7 @@ class KafkaPublisherBackend(PublisherBackend):
         from confluent_kafka import Producer
 
         self.__topic = configuration['topic']
-        self.__producer = Producer(dict(configuration['producer']))  # XXX: fix
+        self.__producer = Producer(configuration['producer'])
 
     def __repr__(self):
         return '<{type}: {topic!r}>'.format(
