@@ -1,5 +1,6 @@
 import itertools
 import logging
+from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from select import select
 from typing import Set, Union, Tuple
@@ -103,16 +104,20 @@ class Source(object):
         return task
 
 
-class SourceBackend(object):
+class SourceBackend(ABC):
+    @abstractmethod
     def fetch(self) -> Union[None, Tuple[Position, str]]:
         raise NotImplementedError
 
+    @abstractmethod
     def poll(self, timeout: float):
         raise NotImplementedError
 
+    @abstractmethod
     def commit_positions(self, write_position: Union[None, Position], flush_position: Union[None, Position]):
         raise NotImplementedError
 
+    @abstractmethod
     def get_next_scheduled_task(self, now: datetime) -> Union[None, ScheduledTask]:
         raise NotImplementedError
 

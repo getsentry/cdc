@@ -1,5 +1,6 @@
 import functools
 import logging
+from abc import ABC, abstractmethod
 from typing import Union
 
 from cdc.common import Message
@@ -50,16 +51,20 @@ class Publisher(object):
         self.__backend.flush(timeout)
 
 
-class PublisherBackend(object):
+class PublisherBackend(ABC):
+    @abstractmethod
     def __len__(self) -> int:
         raise NotImplementedError
 
+    @abstractmethod
     def write(self, message: Message, callback):  # TODO: type
         raise NotImplementedError
 
+    @abstractmethod
     def poll(self, timeout: float):
         raise NotImplementedError
 
+    @abstractmethod
     def flush(self, timeout: float):
         raise NotImplementedError
 
