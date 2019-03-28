@@ -25,8 +25,8 @@ class Source(object):
                 },
                 'required': ['type'],
             },
-            'update_slot_positions_after_flushed_messages': {'type': 'number'},
-            'update_slot_positions_after_seconds': {'type': 'number'},
+            'commit_positions_after_flushed_messages': {'type': 'number'},
+            'commit_positions_after_seconds': {'type': 'number'},
         },
         'required': ['backend'],
     }
@@ -36,8 +36,8 @@ class Source(object):
 
         self.__id_generator = itertools.count(1)
 
-        self.__commit_messages = configuration['update_slot_positions_after_flushed_messages']
-        self.__commit_timeout = configuration['update_slot_positions_after_seconds']
+        self.__commit_messages = configuration['commit_positions_after_flushed_messages']
+        self.__commit_timeout = configuration['commit_positions_after_seconds']
 
         self.__write_id: Union[None, Id] = None
         self.__write_position: Union[None, Position] = None
