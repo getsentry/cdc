@@ -15,6 +15,9 @@ class Application(object):
         self.publisher = Publisher(configuration["stream"])
 
     def run(self):
+        self.source.validate()
+        self.publisher.validate()
+
         try:
             message = None
             while True:

@@ -59,6 +59,9 @@ class Source(object):
             type=type(self).__name__, backend=self.__backend
         )
 
+    def validate(self):
+        self.__backend.validate()
+
     def fetch(self) -> Union[None, Message]:
         result = self.__backend.fetch()
         if result is not None:
@@ -117,6 +120,9 @@ class Source(object):
 
 
 class SourceBackend(ABC):
+    def validate(self):
+        logger.trace('Validation is not implemented for %r.', self)
+
     @abstractmethod
     def fetch(self) -> Union[None, Tuple[Position, str]]:
         raise NotImplementedError

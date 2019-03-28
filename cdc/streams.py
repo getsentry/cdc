@@ -42,6 +42,9 @@ class Publisher(object):
     def __len__(self) -> int:
         return len(self.__backend)
 
+    def validate(self):
+        self.__backend.validate()
+
     def write(self, message: Message, callback):  # TODO: type
         self.__backend.write(message, callback)
 
@@ -56,6 +59,9 @@ class PublisherBackend(ABC):
     @abstractmethod
     def __len__(self) -> int:
         raise NotImplementedError
+
+    def validate(self):
+        logger.trace('Validation is not implemented for %r.', self)
 
     @abstractmethod
     def write(self, message: Message, callback):  # TODO: type
@@ -93,6 +99,11 @@ class KafkaPublisherBackend(PublisherBackend):
 
     def __len__(self):
         return len(self.__producer)
+
+    def validate(self):
+        # TODO: Check the topic configuration, warn loudly if there are too
+        # many partitions, etc.
+        pass
 
     def __delivery_callback(self, id, position, callback, error, message):  # TODO: type
         if error is not None:
