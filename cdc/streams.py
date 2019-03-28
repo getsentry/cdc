@@ -42,10 +42,10 @@ class Publisher(object):
     def write(self, message: Message, callback):  # TODO: type
         self.__backend.write(message, callback)
 
-    def poll(self, timeout: float = None):
+    def poll(self, timeout: float):
         self.__backend.poll(timeout)
 
-    def flush(self, timeout: float = None):
+    def flush(self, timeout: float):
         self.__backend.flush(timeout)
 
 
@@ -56,10 +56,10 @@ class PublisherBackend(object):
     def write(self, message: Message, callback):  # TODO: type
         raise NotImplementedError
 
-    def poll(self, timeout: float = None):
+    def poll(self, timeout: float):
         raise NotImplementedError
 
-    def flush(self, timeout: float = None):
+    def flush(self, timeout: float):
         raise NotImplementedError
 
 

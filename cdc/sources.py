@@ -56,14 +56,14 @@ class Source(object):
 
     def fetch(self) -> Union[None, Message]:
         result = self.__backend.fetch()
-        if result is None:
-            return
-
-        return Message(
-            Id(next(self.__id_generator)),
-            result[0],
-            result[1],
-        )
+        if result is not None:
+            return Message(
+                Id(next(self.__id_generator)),
+                result[0],
+                result[1],
+            )
+        else:
+            return None
 
     def poll(self, timeout: float = None):
         self.__backend.poll(timeout)
@@ -198,13 +198,13 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
     def fetch(self) -> Union[None, Tuple[Position, str]]:
         message = self.__get_cursor(create=True).read_message()
-        if message is None:
-            return
-
-        return (
-            Position(message.data_start),
-            message.payload,
-        )
+        if message is not None:
+            return (
+                Position(message.data_start),
+                message.payload,
+            )
+        else:
+            return None
 
     def poll(self, timeout: float):
         select([
