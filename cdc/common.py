@@ -2,8 +2,8 @@ from datetime import datetime
 from typing import NamedTuple, NewType, Callable
 
 
-Id = NewType('Id', int)
-Position = NewType('Position', int)
+Id = NewType("Id", int)
+Position = NewType("Position", int)
 
 
 class ScheduledTask(NamedTuple):

@@ -11,8 +11,8 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 class Application(object):
     def __init__(self, configuration):
-        self.source = Source(configuration['source'])
-        self.publisher = Publisher(configuration['stream'])
+        self.source = Source(configuration["source"])
+        self.publisher = Publisher(configuration["stream"])
 
     def run(self):
         try:
@@ -25,12 +25,12 @@ class Application(object):
                 # to be sent. If that's the case, we don't need to get a new
                 # message.
                 if message is None:
-                    logger.trace('Trying to fetch message from %r...', self.source)
+                    logger.trace("Trying to fetch message from %r...", self.source)
                     message = self.source.fetch()
                     if message is not None:
-                        logger.trace('Received message: %r', message)
+                        logger.trace("Received message: %r", message)
                     else:
-                        logger.trace('Did not receive message.')
+                        logger.trace("Did not receive message.")
 
                 # It's also possible that there is nothing interesting
                 # happening on the database right now, so there are no messages
@@ -39,25 +39,28 @@ class Application(object):
                 # fetched above) that we can try to publish. (If this fails,
                 # we'll try again on the next iteration.)
                 if message is not None:
-                    logger.trace('Trying to write message to %r...', self.publisher)
+                    logger.trace("Trying to write message to %r...", self.publisher)
                     try:
                         self.publisher.write(
-                            message,
-                            callback=self.source.set_flush_position,
+                            message, callback=self.source.set_flush_position
                         )
                     except BufferError as e:  # TODO: too coupled to kafka impl
-                        logger.trace('Failed to write %r to %r due to %r, will retry.', message, self.publisher, e)
-                    else:
-                        logger.trace('Succesfully wrote %r to %r.', message, self.publisher)
-                        self.source.set_write_position(
-                            message.id,
-                            message.position,
+                        logger.trace(
+                            "Failed to write %r to %r due to %r, will retry.",
+                            message,
+                            self.publisher,
+                            e,
                         )
+                    else:
+                        logger.trace(
+                            "Succesfully wrote %r to %r.", message, self.publisher
+                        )
+                        self.source.set_write_position(message.id, message.position)
                         message = None
 
                 # If there are any queued delivery callbacks, we invoke them
                 # here.
-                logger.trace('Invoking queued delivery callbacks...')
+                logger.trace("Invoking queued delivery callbacks...")
                 self.publisher.poll(0)
 
                 # If there are any scheduled tasks that need to be performed
@@ -68,10 +71,10 @@ class Application(object):
                 while True:
                     task = self.source.get_next_scheduled_task(now)
                     if not task or task.deadline > now:
-                        logger.trace('There are no scheduled tasks to perform.')
+                        logger.trace("There are no scheduled tasks to perform.")
                         break
 
-                    logger.debug('Executing scheduled task: %r', task)
+                    logger.debug("Executing scheduled task: %r", task)
                     task.callable()
 
                 # We might need to block here if there are not any more
@@ -88,7 +91,9 @@ class Application(object):
                 # only wait as long as the next deadline.
                 now = datetime.now()
                 task = self.source.get_next_scheduled_task(now)
-                max_loop_block_timeout = 10.0  # keep producer.poll from going totally unresponsive
+                max_loop_block_timeout = (
+                    10.0
+                )  # keep producer.poll from going totally unresponsive
                 if task is not None:
                     timeout = min(
                         max((task.deadline - now).total_seconds(), 0),
@@ -98,12 +103,14 @@ class Application(object):
                     timeout = max_loop_block_timeout
 
                 waiting_for = self.source if message is None else publisher
-                logger.trace('Waiting for %r for up to %0.4f seconds...', waiting_for, timeout)
+                logger.trace(
+                    "Waiting for %r for up to %0.4f seconds...", waiting_for, timeout
+                )
                 waiting_for.poll(timeout)
 
         except KeyboardInterrupt as e:
-            logger.info('Caught %r, Shutting down...', e)
-            logger.debug('Waiting for %s messages to flush...', len(self.publisher))
+            logger.info("Caught %r, Shutting down...", e)
+            logger.debug("Waiting for %s messages to flush...", len(self.publisher))
             self.publisher.flush(60.0)
-            logger.debug('Committing positions...')
+            logger.debug("Committing positions...")
             self.source.commit_positions()

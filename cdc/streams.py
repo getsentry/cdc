@@ -15,27 +15,28 @@ backends = {}
 
 class Publisher(object):
     schema = {
-        'type': 'object',
-        'properties': {
-            'backend': {
-                'type': 'object',
-                'properties': {
-                    'type': {'type': 'string'},
-                    'options': {'type': 'object'},
+        "type": "object",
+        "properties": {
+            "backend": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string"},
+                    "options": {"type": "object"},
                 },
-                'required': ['type'],
-            },
+                "required": ["type"],
+            }
         },
-        'required': ['backend'],
+        "required": ["backend"],
     }
 
     def __init__(self, configuration):
-        self.__backend = backends[configuration['backend']['type']](configuration['backend']['options'])
+        self.__backend = backends[configuration["backend"]["type"]](
+            configuration["backend"]["options"]
+        )
 
     def __repr__(self):
-        return'<{type}: {backend}>'.format(
-            type=type(self).__name__,
-            backend=self.__backend,
+        return "<{type}: {backend}>".format(
+            type=type(self).__name__, backend=self.__backend
         )
 
     def __len__(self) -> int:
@@ -71,27 +72,23 @@ class PublisherBackend(ABC):
 
 class KafkaPublisherBackend(PublisherBackend):
     schema = {
-        'type': 'object',
-        'properties': {
-            'topic': {'type': 'string'},
-            'producer': {
-                'type': 'object',
-                'properties': {},  # TODO
-            },
+        "type": "object",
+        "properties": {
+            "topic": {"type": "string"},
+            "producer": {"type": "object", "properties": {}},  # TODO
         },
-        'required': ['topic'],
+        "required": ["topic"],
     }
 
     def __init__(self, configuration):
         from confluent_kafka import Producer
 
-        self.__topic = configuration['topic']
-        self.__producer = Producer(configuration['producer'])
+        self.__topic = configuration["topic"]
+        self.__producer = Producer(configuration["producer"])
 
     def __repr__(self):
-        return '<{type}: {topic!r}>'.format(
-            type=type(self).__name__,
-            topic=self.__topic,
+        return "<{type}: {topic!r}>".format(
+            type=type(self).__name__, topic=self.__topic
         )
 
     def __len__(self):
@@ -107,11 +104,8 @@ class KafkaPublisherBackend(PublisherBackend):
             self.__topic,
             message.payload,
             callback=functools.partial(
-                self.__delivery_callback,
-                message.id,
-                message.position,
-                callback,
-            )
+                self.__delivery_callback, message.id, message.position, callback
+            ),
         )
 
     def poll(self, timeout: float):
@@ -121,4 +115,4 @@ class KafkaPublisherBackend(PublisherBackend):
         self.__producer.flush(timeout)
 
 
-backends['kafka'] = KafkaPublisherBackend
+backends["kafka"] = KafkaPublisherBackend
