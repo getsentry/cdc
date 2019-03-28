@@ -122,7 +122,7 @@ class Source(object):
 
 class SourceBackend(ABC):
     def validate(self):
-        logger.trace('Validation is not implemented for %r.', self)
+        logger.trace("Validation is not implemented for %r.", self)
 
     @abstractmethod
     def fetch(self) -> Union[None, Tuple[Position, str]]:

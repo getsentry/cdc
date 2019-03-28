@@ -113,6 +113,9 @@ class Application(object):
 
         except KeyboardInterrupt as e:
             logger.debug("Caught %r, shutting down...", e)
-            logger.debug("Waiting for %s messages to flush and committing positions before exiting...", len(self.publisher))
+            logger.debug(
+                "Waiting for %s messages to flush and committing positions before exiting...",
+                len(self.publisher),
+            )
             self.publisher.flush(60.0)
             self.source.commit_positions()

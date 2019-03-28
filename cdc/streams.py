@@ -61,7 +61,7 @@ class PublisherBackend(ABC):
         raise NotImplementedError
 
     def validate(self):
-        logger.trace('Validation is not implemented for %r.', self)
+        logger.trace("Validation is not implemented for %r.", self)
 
     @abstractmethod
     def write(self, message: Message, callback):  # TODO: type
