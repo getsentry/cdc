@@ -1,0 +1,38 @@
+logging:
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+        simple:
+            format: '%(asctime)s %(levelname)-8s %(message)s'
+    handlers:
+        stderr:
+            class: 'logging.StreamHandler'
+            formatter: 'simple'
+    root:
+        level: DEBUG
+        handlers:
+            - 'stderr'
+
+source:
+    update_slot_positions_after_flushed_messages: 1000
+    update_slot_positions_after_seconds: 30.0
+    backend:
+        type: postgres:logical
+        options:
+            dsn: 'postgres://postgres@localhost:5432/postgres'
+            slot:
+                name: 'example'
+                plugin: 'wal2json'
+                create: true
+                options:
+                    include-xids: 'true'
+                    write-in-chunks: 'true'
+            keepalive_interval: 10.0
+
+stream:
+    backend:
+        type: kafka
+        options:
+            topic: topic
+            producer:
+                bootstrap.servers: 'localhost:9092'
