@@ -15,7 +15,7 @@ logging:
 
 source:
     commit_positions_after_flushed_messages: 1000
-    commit_positions_after_seconds: 30.0
+    commit_positions_after_seconds: 10.0
     backend:
         type: postgres:logical
         options:
@@ -27,7 +27,7 @@ source:
                 options:
                     include-xids: 'true'
                     write-in-chunks: 'true'
-            keepalive_interval: 10.0
+            keepalive_interval: 5.0
 
 stream:
     backend:
