@@ -5,9 +5,10 @@ from select import select
 from typing import Set, Union, Tuple
 
 from cdc.common import Id, Message, Position, ScheduledTask
+from cdc.logging import LoggerAdapter
 
 
-logger = logging.getLogger(__name__)
+logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 backends = {}

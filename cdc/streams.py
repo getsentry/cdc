@@ -3,9 +3,10 @@ import logging
 from typing import Union
 
 from cdc.common import Message
+from cdc.logging import LoggerAdapter
 
 
-logger = logging.getLogger(__name__)
+logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 backends = {}

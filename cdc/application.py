@@ -1,11 +1,12 @@
 import logging
 from datetime import datetime
 
+from cdc.logging import LoggerAdapter
 from cdc.sources import Source
 from cdc.streams import Publisher
 
 
-logger = logging.getLogger(__name__)
+logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class Application(object):
