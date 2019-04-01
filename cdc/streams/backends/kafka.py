@@ -1,10 +1,11 @@
 import functools
 import jsonschema
 import logging
-from confluent_kafka import Producer
+from confluent_kafka import KafkaError, Producer
+from typing import Callable, Union
 
 from cdc.logging import LoggerAdapter
-from cdc.sources.types import Message
+from cdc.sources.types import Payload
 from cdc.streams.backends import PublisherBackend
 
 
@@ -40,18 +41,22 @@ class KafkaPublisherBackend(PublisherBackend):
         # many partitions, etc.
         pass
 
-    def __delivery_callback(self, id, position, callback, error, message):  # TODO: type
+    def __delivery_callback(
+        self,
+        callback: Callable[[], None],
+        error: Union[None, KafkaError],
+        *args,
+        **kwargs
+    ):
         if error is not None:
             raise Exception(error)
-        callback(id, position)
+        callback()
 
-    def write(self, message: Message, callback):  # TODO: type
+    def write(self, payload: Payload, callback: Callable[[], None]):
         self.__producer.produce(
             self.__topic,
-            message.payload,
-            callback=functools.partial(
-                self.__delivery_callback, message.id, message.position, callback
-            ),
+            payload,
+            callback=functools.partial(self.__delivery_callback, callback),
         )
 
     def poll(self, timeout: float):

@@ -8,7 +8,7 @@ from typing import Mapping, Union, Tuple
 
 from cdc.logging import LoggerAdapter
 from cdc.sources.backends import SourceBackend
-from cdc.sources.types import Position
+from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
 
 
@@ -90,10 +90,10 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         return self.__cursor
 
-    def fetch(self) -> Union[None, Tuple[Position, str]]:
+    def fetch(self) -> Union[None, Tuple[Position, Payload]]:
         message = self.__get_cursor(create=True).read_message()
         if message is not None:
-            return (Position(message.data_start), message.payload)
+            return (Position(message.data_start), Payload(message.payload))
         else:
             return None
 

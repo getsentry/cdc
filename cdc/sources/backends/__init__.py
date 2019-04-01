@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Mapping, Union, Tuple, Type
 
 from cdc.logging import LoggerAdapter
-from cdc.sources.types import Position
+from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
 
 
@@ -16,7 +16,7 @@ class SourceBackend(ABC):
         logger.trace("Validation is not implemented for %r.", self)
 
     @abstractmethod
-    def fetch(self) -> Union[None, Tuple[Position, str]]:
+    def fetch(self) -> Union[None, Tuple[Position, Payload]]:
         raise NotImplementedError
 
     @abstractmethod

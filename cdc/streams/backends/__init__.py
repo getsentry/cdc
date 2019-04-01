@@ -1,9 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Mapping, Type
+from typing import Callable, Mapping, Type
 
 from cdc.logging import LoggerAdapter
-from cdc.sources.types import Message
+from cdc.sources.types import Payload
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
@@ -18,7 +18,7 @@ class PublisherBackend(ABC):
         logger.trace("Validation is not implemented for %r.", self)
 
     @abstractmethod
-    def write(self, message: Message, callback):  # TODO: type
+    def write(self, payload: Payload, callback: Callable[[], None]):
         raise NotImplementedError
 
     @abstractmethod

@@ -1,3 +1,4 @@
+import functools
 import logging
 from datetime import datetime
 
@@ -45,7 +46,12 @@ class Application(object):
                     logger.trace("Trying to write message to %r...", self.publisher)
                     try:
                         self.publisher.write(
-                            message, callback=self.source.set_flush_position
+                            message.payload,
+                            callback=functools.partial(
+                                self.source.set_flush_position,
+                                message.id,
+                                message.position,
+                            ),
                         )
                     except BufferError as e:  # TODO: too coupled to kafka impl
                         logger.trace(

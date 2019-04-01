@@ -1,6 +1,7 @@
 import jsonschema
+from typing import Callable
 
-from cdc.sources.types import Message
+from cdc.sources.types import Payload
 from cdc.streams.backends import PublisherBackend, registry
 
 
@@ -38,8 +39,8 @@ class Publisher(object):
     def validate(self):
         self.__backend.validate()
 
-    def write(self, message: Message, callback):  # TODO: type
-        self.__backend.write(message, callback)
+    def write(self, payload: Payload, callback: Callable[[], None]):
+        self.__backend.write(payload, callback)
 
     def poll(self, timeout: float):
         self.__backend.poll(timeout)
