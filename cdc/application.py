@@ -105,7 +105,7 @@ class Application(object):
                 else:
                     timeout = max_loop_block_timeout
 
-                waiting_for = self.source if message is None else publisher
+                waiting_for = self.source if message is None else self.publisher
                 logger.trace(
                     "Waiting for %r for up to %0.4f seconds...", waiting_for, timeout
                 )
