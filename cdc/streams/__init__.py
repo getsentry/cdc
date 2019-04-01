@@ -1,4 +1,4 @@
-from cdc.common import Message
+from cdc.sources.types import Message
 from cdc.streams.backends import PublisherBackend, registry
 
 

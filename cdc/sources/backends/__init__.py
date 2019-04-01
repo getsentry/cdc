@@ -3,9 +3,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Mapping, Union, Tuple, Type
 
-from cdc import ScheduledTask
-from cdc.common import Position
 from cdc.logging import LoggerAdapter
+from cdc.sources.types import Position
+from cdc.types import ScheduledTask
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))

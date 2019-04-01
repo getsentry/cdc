@@ -3,10 +3,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import Union
 
-from cdc import ScheduledTask
-from cdc.common import Id, Message, Position
 from cdc.logging import LoggerAdapter
 from cdc.sources.backends import SourceBackend, registry
+from cdc.sources.types import Id, Message, Position
+from cdc.types import ScheduledTask
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))

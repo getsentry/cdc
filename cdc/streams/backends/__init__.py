@@ -2,8 +2,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Mapping, Type
 
-from cdc.common import Message
 from cdc.logging import LoggerAdapter
+from cdc.sources.types import Message
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))

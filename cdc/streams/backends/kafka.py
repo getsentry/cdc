@@ -2,8 +2,8 @@ import functools
 import logging
 from confluent_kafka import Producer
 
-from cdc.common import Message
 from cdc.logging import LoggerAdapter
+from cdc.sources.types import Message
 from cdc.streams.backends import PublisherBackend
 
 

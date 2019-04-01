@@ -5,10 +5,10 @@ from psycopg2.extras import LogicalReplicationConnection, REPLICATION_LOGICAL
 from select import select
 from typing import Union, Tuple
 
-from cdc import ScheduledTask
-from cdc.common import Position
 from cdc.logging import LoggerAdapter
 from cdc.sources.backends import SourceBackend
+from cdc.sources.types import Position
+from cdc.types import ScheduledTask
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
