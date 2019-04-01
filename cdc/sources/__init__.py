@@ -101,8 +101,9 @@ class Source(object):
         self.__last_commit_datetime = datetime.now()
 
     def get_next_scheduled_task(self, now: datetime) -> ScheduledTask:
-        if self.__commit_messages is not None and (
-            self.__flush_id is not None
+        if (
+            self.__commit_messages is not None
+            and self.__flush_id is not None
             and self.__flush_id
             - (
                 self.__last_commit_flush_id
