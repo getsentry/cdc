@@ -1,5 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
+from typing import Mapping, Type
 
 from cdc.common import Message
 from cdc.logging import LoggerAdapter
@@ -27,3 +28,10 @@ class PublisherBackend(ABC):
     @abstractmethod
     def flush(self, timeout: float):
         raise NotImplementedError
+
+
+from cdc.streams.backends.kafka import KafkaPublisherBackend
+
+registry: Mapping[str, Type[PublisherBackend]] = {
+    'kafka': KafkaPublisherBackend,
+}

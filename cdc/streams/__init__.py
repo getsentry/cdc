@@ -1,5 +1,5 @@
 from cdc.common import Message
-from cdc.streams.backends import PublisherBackend
+from cdc.streams.backends import PublisherBackend, registry
 
 
 class Publisher(object):
@@ -19,7 +19,7 @@ class Publisher(object):
     }
 
     def __init__(self, configuration):
-        self.__backend: PublisherBackend = backends[configuration["backend"]["type"]](
+        self.__backend: PublisherBackend = registry[configuration["backend"]["type"]](
             configuration["backend"]["options"]
         )
 

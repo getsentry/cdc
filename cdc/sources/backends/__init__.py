@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Union, Tuple
+from typing import Mapping, Union, Tuple, Type
 
 from cdc.common import Position, ScheduledTask
 from cdc.logging import LoggerAdapter
@@ -33,3 +33,10 @@ class SourceBackend(ABC):
     @abstractmethod
     def get_next_scheduled_task(self, now: datetime) -> Union[None, ScheduledTask]:
         raise NotImplementedError
+
+
+from cdc.sources.backends.postgres_logical import PostgresLogicalReplicationSlotBackend
+
+registry: Mapping[str, Type[SourceBackend]] = {
+    'postgres_logical': PostgresLogicalReplicationSlotBackend,
+}

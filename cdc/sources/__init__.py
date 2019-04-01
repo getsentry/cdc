@@ -5,7 +5,7 @@ from typing import Union
 
 from cdc.common import Id, Message, Position, ScheduledTask
 from cdc.logging import LoggerAdapter
-from cdc.sources.backends import SourceBackend
+from cdc.sources.backends import SourceBackend, registry
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
@@ -30,7 +30,7 @@ class Source(object):
     }
 
     def __init__(self, configuration):
-        self.__backend: SourceBackend = backends[configuration["backend"]["type"]](
+        self.__backend: SourceBackend = registry[configuration["backend"]["type"]](
             configuration["backend"]["options"]
         )
 
