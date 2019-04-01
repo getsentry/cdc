@@ -112,10 +112,18 @@ class Application(object):
                     timeout = max_loop_block_timeout
 
                 if message is None:
-                    logger.trace("Waiting for %r for up to %0.4f seconds...", self.source, timeout)
+                    logger.trace(
+                        "Waiting for %r for up to %0.4f seconds...",
+                        self.source,
+                        timeout,
+                    )
                     self.source.poll(timeout)
                 else:
-                    logger.trace("Waiting for %r for up to %0.4f seconds...", self.publisher, timeout)
+                    logger.trace(
+                        "Waiting for %r for up to %0.4f seconds...",
+                        self.publisher,
+                        timeout,
+                    )
                     self.publisher.poll(timeout)
 
         except KeyboardInterrupt as e:
