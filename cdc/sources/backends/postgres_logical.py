@@ -1,9 +1,10 @@
+import jsonschema
 import logging
 import psycopg2
 from datetime import datetime, timedelta
 from psycopg2.extras import LogicalReplicationConnection, REPLICATION_LOGICAL
 from select import select
-from typing import Union, Tuple
+from typing import Mapping, Union, Tuple
 
 from cdc.logging import LoggerAdapter
 from cdc.sources.backends import SourceBackend
@@ -35,12 +36,17 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
     }
 
     def __init__(self, configuration):
-        self.__dsn = configuration["dsn"]
-        self.__slot_name = configuration["slot"]["name"]
-        self.__slot_plugin = configuration["slot"]["plugin"]
-        self.__slot_options = configuration["slot"]["options"]
-        self.__slot_create = configuration["slot"]["create"]
-        self.__keepalive_interval = configuration["keepalive_interval"]
+        jsonschema.validate(configuration, self.schema)
+        self.__dsn: str = configuration["dsn"]
+        self.__slot_name: str = configuration["slot"]["name"]
+        self.__slot_plugin: str = configuration["slot"]["plugin"]
+        self.__slot_options: Mapping[str, str] = configuration["slot"].get(
+            "options", {}
+        )
+        self.__slot_create: bool = configuration["slot"].get("create", False)
+        self.__keepalive_interval: float = float(
+            configuration.get("keepalive_interval", 10.0)
+        )
         self.__cursor = None  # TODO: type
 
     def __repr__(self):

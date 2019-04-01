@@ -14,8 +14,6 @@ logging:
             - 'stderr'
 
 source:
-    commit_positions_after_flushed_messages: 1000
-    commit_positions_after_seconds: 10.0
     backend:
         type: postgres_logical
         options:
@@ -23,11 +21,9 @@ source:
             slot:
                 name: 'example'
                 plugin: 'wal2json'
-                create: true
                 options:
                     include-xids: 'true'
                     write-in-chunks: 'true'
-            keepalive_interval: 5.0
 
 stream:
     backend:

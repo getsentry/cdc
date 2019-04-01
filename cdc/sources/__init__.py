@@ -1,4 +1,5 @@
 import itertools
+import jsonschema
 import logging
 from datetime import datetime, timedelta
 from typing import Union
@@ -31,16 +32,23 @@ class Source(object):
     }
 
     def __init__(self, configuration):
+        jsonschema.validate(configuration, self.schema)
+
         self.__backend: SourceBackend = registry[configuration["backend"]["type"]](
             configuration["backend"]["options"]
         )
 
         self.__id_generator = itertools.count(1)
 
-        self.__commit_messages = configuration[
-            "commit_positions_after_flushed_messages"
-        ]
-        self.__commit_timeout = configuration["commit_positions_after_seconds"]
+        self.__commit_messages: Union[None, int] = None
+        if "commit_positions_after_flushed_messages" in configuration:
+            self.__commit_messages = int(
+                configuration["commit_positions_after_flushed_messages"]
+            )
+
+        self.__commit_timeout: float = float(
+            configuration.get("commit_positions_after_seconds", 60.0)
+        )
 
         self.__write_id: Union[None, Id] = None
         self.__write_position: Union[None, Position] = None
@@ -93,7 +101,7 @@ class Source(object):
         self.__last_commit_datetime = datetime.now()
 
     def get_next_scheduled_task(self, now: datetime) -> ScheduledTask:
-        if (
+        if self.__commit_messages is not None and (
             self.__flush_id is not None
             and self.__flush_id
             - (

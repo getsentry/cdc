@@ -1,4 +1,5 @@
 import functools
+import jsonschema
 import logging
 from confluent_kafka import Producer
 
@@ -21,7 +22,9 @@ class KafkaPublisherBackend(PublisherBackend):
     }
 
     def __init__(self, configuration):
-        self.__topic = configuration["topic"]
+        jsonschema.validate(configuration, self.schema)
+
+        self.__topic: str = configuration["topic"]
         self.__producer = Producer(configuration["producer"])
 
     def __repr__(self):

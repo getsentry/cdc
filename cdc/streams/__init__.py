@@ -1,3 +1,5 @@
+import jsonschema
+
 from cdc.sources.types import Message
 from cdc.streams.backends import PublisherBackend, registry
 
@@ -19,6 +21,8 @@ class Publisher(object):
     }
 
     def __init__(self, configuration):
+        jsonschema.validate(configuration, self.schema)
+
         self.__backend: PublisherBackend = registry[configuration["backend"]["type"]](
             configuration["backend"]["options"]
         )
