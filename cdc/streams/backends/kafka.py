@@ -28,15 +28,15 @@ class KafkaPublisherBackend(PublisherBackend):
         self.__topic: str = configuration["topic"]
         self.__producer = Producer(configuration["producer"])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<{type}: {topic!r}>".format(
             type=type(self).__name__, topic=self.__topic
         )
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__producer)
 
-    def validate(self):
+    def validate(self) -> None:
         # TODO: Check the topic configuration, warn loudly if there are too
         # many partitions, etc.
         pass
@@ -47,20 +47,20 @@ class KafkaPublisherBackend(PublisherBackend):
         error: Union[None, KafkaError],
         *args,
         **kwargs
-    ):
+    ) -> None:
         if error is not None:
             raise Exception(error)
         callback()
 
-    def write(self, payload: Payload, callback: Callable[[], None]):
+    def write(self, payload: Payload, callback: Callable[[], None]) -> None:
         self.__producer.produce(
             self.__topic,
             payload,
             callback=functools.partial(self.__delivery_callback, callback),
         )
 
-    def poll(self, timeout: float):
+    def poll(self, timeout: float) -> None:
         self.__producer.poll(timeout)
 
-    def flush(self, timeout: float):
+    def flush(self, timeout: float) -> None:
         self.__producer.flush(timeout)

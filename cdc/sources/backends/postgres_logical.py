@@ -2,6 +2,7 @@ import jsonschema
 import logging
 import psycopg2
 from datetime import datetime, timedelta
+from psycopg2.extensions import cursor
 from psycopg2.extras import LogicalReplicationConnection, REPLICATION_LOGICAL
 from select import select
 from typing import Mapping, Union, Tuple
@@ -47,14 +48,14 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         self.__keepalive_interval: float = float(
             configuration.get("keepalive_interval", 10.0)
         )
-        self.__cursor = None  # TODO: type
+        self.__cursor: cursor = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<{type}: {slot!r} on {dsn!r}>".format(
             type=type(self).__name__, slot=self.__slot_name, dsn=self.__dsn
         )
 
-    def __get_cursor(self, create: bool = False):
+    def __get_cursor(self, create: bool = False) -> cursor:
         if self.__cursor is not None:
             return self.__cursor
         elif not create:
@@ -97,14 +98,14 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         else:
             return None
 
-    def poll(self, timeout: float):
+    def poll(self, timeout: float) -> None:
         select([self.__get_cursor()], [], [], timeout)
 
     def commit_positions(
         self,
         write_position: Union[None, Position],
         flush_position: Union[None, Position],
-    ):
+    ) -> None:
         send_feedback_kwargs = {}
 
         if write_position is not None:
@@ -115,7 +116,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         self.__get_cursor().send_feedback(**send_feedback_kwargs)
 
-    def send_keepalive(self):
+    def send_keepalive(self) -> None:
         """
         Send a keep-alive message.
         """

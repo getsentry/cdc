@@ -14,19 +14,19 @@ class PublisherBackend(ABC):
     def __len__(self) -> int:
         raise NotImplementedError
 
-    def validate(self):
+    def validate(self) -> None:
         logger.trace("Validation is not implemented for %r.", self)
 
     @abstractmethod
-    def write(self, payload: Payload, callback: Callable[[], None]):
+    def write(self, payload: Payload, callback: Callable[[], None]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def poll(self, timeout: float):
+    def poll(self, timeout: float) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def flush(self, timeout: float):
+    def flush(self, timeout: float) -> None:
         raise NotImplementedError
 
 

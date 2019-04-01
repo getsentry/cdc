@@ -15,7 +15,7 @@ class Application(object):
         self.source = Source(configuration["source"])
         self.publisher = Publisher(configuration["stream"])
 
-    def run(self):
+    def run(self) -> None:
         self.source.validate()
         self.publisher.validate()
 
@@ -111,11 +111,12 @@ class Application(object):
                 else:
                     timeout = max_loop_block_timeout
 
-                waiting_for = self.source if message is None else self.publisher
-                logger.trace(
-                    "Waiting for %r for up to %0.4f seconds...", waiting_for, timeout
-                )
-                waiting_for.poll(timeout)
+                if message is None:
+                    logger.trace("Waiting for %r for up to %0.4f seconds...", self.source, timeout)
+                    self.source.poll(timeout)
+                else:
+                    logger.trace("Waiting for %r for up to %0.4f seconds...", self.publisher, timeout)
+                    self.publisher.poll(timeout)
 
         except KeyboardInterrupt as e:
             logger.debug("Caught %r, shutting down...", e)

@@ -59,12 +59,12 @@ class Source(object):
         self.__last_commit_flush_id: Union[None, Id] = None
         self.__last_commit_datetime: datetime = datetime.now()  # TODO: This is kind of a strange default
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<{type}: {backend}>".format(
             type=type(self).__name__, backend=self.__backend
         )
 
-    def validate(self):
+    def validate(self) -> None:
         self.__backend.validate()
 
     def fetch(self) -> Union[None, Message]:
@@ -74,22 +74,22 @@ class Source(object):
         else:
             return None
 
-    def poll(self, timeout: float):
+    def poll(self, timeout: float) -> None:
         self.__backend.poll(timeout)
 
-    def set_write_position(self, id: Id, position: Position):
+    def set_write_position(self, id: Id, position: Position) -> None:
         logger.trace("Updating write position of %r to %s...", self, position)
         assert (self.__write_id or 0) + 1 == id
         self.__write_id = id
         self.__write_position = position
 
-    def set_flush_position(self, id: Id, position: Position):
+    def set_flush_position(self, id: Id, position: Position) -> None:
         logger.trace("Updating flush position of %r to %s...", self, position)
         assert (self.__flush_id or 0) + 1 == id
         self.__flush_id = id
         self.__flush_position = position
 
-    def commit_positions(self):
+    def commit_positions(self) -> None:
         logger.trace("Committing positions...")
         self.__backend.commit_positions(self.__write_position, self.__flush_position)
         logger.debug(

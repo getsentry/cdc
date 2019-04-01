@@ -28,7 +28,7 @@ class Publisher(object):
             configuration["backend"]["options"]
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<{type}: {backend}>".format(
             type=type(self).__name__, backend=self.__backend
         )
@@ -36,14 +36,14 @@ class Publisher(object):
     def __len__(self) -> int:
         return len(self.__backend)
 
-    def validate(self):
+    def validate(self) -> None:
         self.__backend.validate()
 
-    def write(self, payload: Payload, callback: Callable[[], None]):
+    def write(self, payload: Payload, callback: Callable[[], None]) -> None:
         self.__backend.write(payload, callback)
 
-    def poll(self, timeout: float):
+    def poll(self, timeout: float) -> None:
         self.__backend.poll(timeout)
 
-    def flush(self, timeout: float):
+    def flush(self, timeout: float) -> None:
         self.__backend.flush(timeout)

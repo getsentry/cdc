@@ -12,7 +12,7 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class SourceBackend(ABC):
-    def validate(self):
+    def validate(self) -> None:
         logger.trace("Validation is not implemented for %r.", self)
 
     @abstractmethod
@@ -20,7 +20,7 @@ class SourceBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def poll(self, timeout: float):
+    def poll(self, timeout: float) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -28,7 +28,7 @@ class SourceBackend(ABC):
         self,
         write_position: Union[None, Position],
         flush_position: Union[None, Position],
-    ):
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
