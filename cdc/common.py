@@ -1,14 +1,8 @@
-from datetime import datetime
-from typing import NamedTuple, NewType, Callable
+from typing import NamedTuple, NewType
 
 
 Id = NewType("Id", int)
 Position = NewType("Position", int)
-
-
-class ScheduledTask(NamedTuple):
-    deadline: datetime
-    callable: Callable[[], None]
 
 
 class Message(NamedTuple):

@@ -3,7 +3,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Union
 
-from cdc.common import Id, Message, Position, ScheduledTask
+from cdc import ScheduledTask
+from cdc.common import Id, Message, Position
 from cdc.logging import LoggerAdapter
 from cdc.sources.backends import SourceBackend, registry
 

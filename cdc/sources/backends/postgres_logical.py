@@ -5,7 +5,8 @@ from psycopg2.extras import LogicalReplicationConnection, REPLICATION_LOGICAL
 from select import select
 from typing import Union, Tuple
 
-from cdc.common import Position, ScheduledTask
+from cdc import ScheduledTask
+from cdc.common import Position
 from cdc.logging import LoggerAdapter
 from cdc.sources.backends import SourceBackend
 

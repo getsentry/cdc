@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Mapping, Union, Tuple, Type
 
-from cdc.common import Position, ScheduledTask
+from cdc import ScheduledTask
+from cdc.common import Position
 from cdc.logging import LoggerAdapter
 
 
