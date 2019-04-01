@@ -38,5 +38,5 @@ class SourceBackend(ABC):
 from cdc.sources.backends.postgres_logical import PostgresLogicalReplicationSlotBackend
 
 registry: Mapping[str, Type[SourceBackend]] = {
-    'postgres_logical': PostgresLogicalReplicationSlotBackend,
+    "postgres_logical": PostgresLogicalReplicationSlotBackend
 }

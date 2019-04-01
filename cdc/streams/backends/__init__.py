@@ -32,6 +32,4 @@ class PublisherBackend(ABC):
 
 from cdc.streams.backends.kafka import KafkaPublisherBackend
 
-registry: Mapping[str, Type[PublisherBackend]] = {
-    'kafka': KafkaPublisherBackend,
-}
+registry: Mapping[str, Type[PublisherBackend]] = {"kafka": KafkaPublisherBackend}
