@@ -1,6 +1,11 @@
+import atexit
 import click
 import logging, logging.config
 import yaml
+from pkg_resources import cleanup_resources, resource_filename
+
+
+atexit.register(cleanup_resources)
 
 
 logging.addLevelName(5, "TRACE")
@@ -8,12 +13,20 @@ logging.addLevelName(5, "TRACE")
 
 @click.group()
 @click.option(
+    "--logging-configuration",
+    type=click.File("r"),
+    default=resource_filename("cdc", "configuration/logging.conf"),
+    help="Path to logging configuration file.",
+)
+@click.option(
     "--log-level",
     type=click.Choice([name for level, name in sorted(logging._levelToName.items())]),
     default=None,
-    help="Override the root logger level.",
+    help="Override root logger level.",
 )
-def main(log_level):
+def main(log_level, logging_configuration):
+    logging.config.fileConfig(logging_configuration)
+
     if log_level is not None:
         logging.getLogger().setLevel(logging._nameToLevel[log_level])
 
