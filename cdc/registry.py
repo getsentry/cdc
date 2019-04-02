@@ -3,7 +3,7 @@ from typing import Any, Callable, Generic, Mapping, TypeVar
 
 Configuration = Mapping[str, Any]
 
-T = TypeVar("T", covariant=True)
+T = TypeVar("T")
 
 
 class Registry(Generic[T]):
