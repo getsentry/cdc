@@ -25,7 +25,7 @@ source:
                     include-xids: 'true'
                     write-in-chunks: 'true'
 
-stream:
+publisher:
     backend:
         type: kafka
         options:

@@ -33,6 +33,6 @@ class PublisherBackend(ABC):
 from cdc.registry import Registry
 from cdc.streams.backends.kafka import kafka_publisher_backend_factory
 
-registry: Registry[PublisherBackend] = Registry(
+publisher_registry: Registry[PublisherBackend] = Registry(
     {"kafka": kafka_publisher_backend_factory}
 )

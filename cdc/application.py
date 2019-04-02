@@ -146,5 +146,5 @@ class Application(object):
 def application_factory(configuration: Configuration) -> Application:
     return Application(
         source=source_factory(configuration["source"]),
-        publisher=publisher_factory(configuration["stream"]),
+        publisher=publisher_factory(configuration["publisher"]),
     )

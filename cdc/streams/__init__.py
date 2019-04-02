@@ -3,7 +3,7 @@ from typing import Callable
 
 from cdc.registry import Configuration
 from cdc.sources.types import Payload
-from cdc.streams.backends import PublisherBackend, registry
+from cdc.streams.backends import PublisherBackend, publisher_registry
 
 
 class Publisher(object):
@@ -50,7 +50,7 @@ def publisher_factory(configuration: Configuration) -> Publisher:
         },
     )
     return Publisher(
-        backend=registry.new(
+        backend=publisher_registry.new(
             configuration["backend"]["type"], configuration["backend"]["options"]
         )
     )
