@@ -1,32 +1,14 @@
 import jsonschema
 from typing import Callable
 
+from cdc.registry import Configuration
 from cdc.sources.types import Payload
 from cdc.streams.backends import PublisherBackend, registry
 
 
 class Publisher(object):
-    schema = {
-        "type": "object",
-        "properties": {
-            "backend": {
-                "type": "object",
-                "properties": {
-                    "type": {"type": "string"},
-                    "options": {"type": "object"},
-                },
-                "required": ["type"],
-            }
-        },
-        "required": ["backend"],
-    }
-
-    def __init__(self, configuration):
-        jsonschema.validate(configuration, self.schema)
-
-        self.__backend: PublisherBackend = registry[configuration["backend"]["type"]](
-            configuration["backend"]["options"]
-        )
+    def __init__(self, backend: PublisherBackend):
+        self.__backend = backend
 
     def __repr__(self) -> str:
         return "<{type}: {backend}>".format(
@@ -47,3 +29,28 @@ class Publisher(object):
 
     def flush(self, timeout: float) -> None:
         self.__backend.flush(timeout)
+
+
+def publisher_factory(configuration: Configuration) -> Publisher:
+    jsonschema.validate(
+        configuration,
+        {
+            "type": "object",
+            "properties": {
+                "backend": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string"},
+                        "options": {"type": "object"},
+                    },
+                    "required": ["type"],
+                }
+            },
+            "required": ["backend"],
+        },
+    )
+    return Publisher(
+        backend=registry.new(
+            configuration["backend"]["type"], configuration["backend"]["options"]
+        )
+    )

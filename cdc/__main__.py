@@ -2,7 +2,7 @@ import logging, logging.config
 import optparse
 import yaml
 
-from cdc.application import Application
+from cdc.application import application_factory
 
 
 parser = optparse.OptionParser()
@@ -18,5 +18,4 @@ if configuration["logging"]:
 if options.log_level is not None:
     logging.getLogger().setLevel(logging._nameToLevel[options.log_level])
 
-application = Application(configuration)
-application.run()
+application_factory(configuration).run()

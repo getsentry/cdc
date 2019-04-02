@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Union
 
 from cdc.logging import LoggerAdapter
+from cdc.registry import Configuration
 from cdc.sources.backends import SourceBackend, registry
 from cdc.sources.types import Id, Message, Position
 from cdc.types import ScheduledTask
@@ -14,41 +15,20 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class Source(object):
-    schema = {
-        "type": "object",
-        "properties": {
-            "backend": {
-                "type": "object",
-                "properties": {
-                    "type": {"type": "string"},
-                    "options": {"type": "object"},
-                },
-                "required": ["type"],
-            },
-            "commit_positions_after_flushed_messages": {"type": "number"},
-            "commit_positions_after_seconds": {"type": "number"},
-        },
-        "required": ["backend"],
-    }
+    def __init__(
+        self,
+        backend: SourceBackend,
+        commit_positions_after_seconds: Union[None, float] = None,
+        commit_positions_after_flushed_messages: Union[None, int] = None,
+    ):
+        if commit_positions_after_seconds is None:
+            commit_positions_after_seconds = 60.0
 
-    def __init__(self, configuration):
-        jsonschema.validate(configuration, self.schema)
-
-        self.__backend: SourceBackend = registry[configuration["backend"]["type"]](
-            configuration["backend"]["options"]
-        )
+        self.__backend = backend
+        self.__commit_messages = commit_positions_after_flushed_messages
+        self.__commit_timeout = commit_positions_after_seconds
 
         self.__id_generator = itertools.count(1)
-
-        self.__commit_messages: Union[None, int] = None
-        if "commit_positions_after_flushed_messages" in configuration:
-            self.__commit_messages = int(
-                configuration["commit_positions_after_flushed_messages"]
-            )
-
-        self.__commit_timeout: float = float(
-            configuration.get("commit_positions_after_seconds", 60.0)
-        )
 
         self.__write_id: Union[None, Id] = None
         self.__write_position: Union[None, Position] = None
@@ -124,3 +104,36 @@ class Source(object):
             task = backend_task
 
         return task
+
+
+def source_factory(configuration: Configuration) -> Source:
+    jsonschema.validate(
+        configuration,
+        {
+            "type": "object",
+            "properties": {
+                "backend": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string"},
+                        "options": {"type": "object"},
+                    },
+                    "required": ["type"],
+                },
+                "commit_positions_after_flushed_messages": {"type": "number"},
+                "commit_positions_after_seconds": {"type": "number"},
+            },
+            "required": ["backend"],
+        },
+    )
+    return Source(
+        backend=registry.new(
+            configuration["backend"]["type"], configuration["backend"]["options"]
+        ),
+        commit_positions_after_flushed_messages=configuration.get(
+            "commit_positions_after_flushed_messages"
+        ),
+        commit_positions_after_seconds=configuration.get(
+            "commit_positions_after_seconds"
+        ),
+    )

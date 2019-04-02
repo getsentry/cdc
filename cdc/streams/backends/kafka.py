@@ -2,9 +2,10 @@ import functools
 import jsonschema
 import logging
 from confluent_kafka import KafkaError, Producer
-from typing import Callable, Union
+from typing import Any, Callable, Mapping, Union
 
 from cdc.logging import LoggerAdapter
+from cdc.registry import Configuration
 from cdc.sources.types import Payload
 from cdc.streams.backends import PublisherBackend
 
@@ -13,20 +14,9 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class KafkaPublisherBackend(PublisherBackend):
-    schema = {
-        "type": "object",
-        "properties": {
-            "topic": {"type": "string"},
-            "producer": {"type": "object", "properties": {}},  # TODO
-        },
-        "required": ["topic"],
-    }
-
-    def __init__(self, configuration):
-        jsonschema.validate(configuration, self.schema)
-
-        self.__topic: str = configuration["topic"]
-        self.__producer = Producer(configuration["producer"])
+    def __init__(self, topic: str, options: Mapping[str, Any]):
+        self.__topic = topic
+        self.__producer = Producer(options)
 
     def __repr__(self) -> str:
         return "<{type}: {topic!r}>".format(
@@ -64,3 +54,22 @@ class KafkaPublisherBackend(PublisherBackend):
 
     def flush(self, timeout: float) -> None:
         self.__producer.flush(timeout)
+
+
+def kafka_publisher_backend_factory(
+    configuration: Configuration
+) -> KafkaPublisherBackend:
+    jsonschema.validate(
+        configuration,
+        {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string"},
+                "options": {"type": "object", "properties": {}},  # TODO
+            },
+            "required": ["topic"],
+        },
+    )
+    return KafkaPublisherBackend(
+        topic=configuration["topic"], options=configuration["options"]
+    )

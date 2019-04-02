@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, Mapping, Type
+from typing import Callable
 
 from cdc.logging import LoggerAdapter
 from cdc.sources.types import Payload
@@ -30,6 +30,9 @@ class PublisherBackend(ABC):
         raise NotImplementedError
 
 
-from cdc.streams.backends.kafka import KafkaPublisherBackend
+from cdc.registry import Registry
+from cdc.streams.backends.kafka import kafka_publisher_backend_factory
 
-registry: Mapping[str, Type[PublisherBackend]] = {"kafka": KafkaPublisherBackend}
+registry: Registry[PublisherBackend] = Registry(
+    {"kafka": kafka_publisher_backend_factory}
+)

@@ -8,6 +8,7 @@ from select import select
 from typing import Mapping, Union, Tuple
 
 from cdc.logging import LoggerAdapter
+from cdc.registry import Configuration
 from cdc.sources.backends import SourceBackend
 from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
@@ -17,37 +18,31 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class PostgresLogicalReplicationSlotBackend(SourceBackend):
-    schema = {
-        "type": "object",
-        "properties": {
-            "dsn": {"type": "string"},
-            "slot": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "plugin": {"type": "string"},
-                    "create": {"type": "boolean"},
-                    "options": {"type": "object", "properties": {}},  # TODO
-                },
-                "required": ["name", "plugin"],
-            },
-            "keepalive_interval": {"type": "number"},
-        },
-        "required": ["dsn"],
-    }
+    def __init__(
+        self,
+        dsn: str,
+        slot_name: str,
+        slot_plugin: str,
+        slot_options: Union[Mapping[str, str], None],
+        slot_create: Union[None, bool] = None,
+        keepalive_interval: Union[None, float] = None,
+    ):
+        if slot_options is None:
+            slot_options = {}
 
-    def __init__(self, configuration):
-        jsonschema.validate(configuration, self.schema)
-        self.__dsn: str = configuration["dsn"]
-        self.__slot_name: str = configuration["slot"]["name"]
-        self.__slot_plugin: str = configuration["slot"]["plugin"]
-        self.__slot_options: Mapping[str, str] = configuration["slot"].get(
-            "options", {}
-        )
-        self.__slot_create: bool = configuration["slot"].get("create", False)
-        self.__keepalive_interval: float = float(
-            configuration.get("keepalive_interval", 10.0)
-        )
+        if slot_create is None:
+            slot_create = False
+
+        if keepalive_interval is None:
+            keepalive_interval = 10.0
+
+        self.__dsn = dsn
+        self.__slot_name = slot_name
+        self.__slot_plugin = slot_plugin
+        self.__slot_options = slot_options
+        self.__slot_create = slot_create
+        self.__keepalive_interval = keepalive_interval
+
         self.__cursor: cursor = None
 
     def __repr__(self) -> str:
@@ -128,3 +123,37 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
             + timedelta(seconds=self.__keepalive_interval),
             self.send_keepalive,
         )
+
+
+def postgres_logical_factory(
+    configuration: Configuration
+) -> PostgresLogicalReplicationSlotBackend:
+    jsonschema.validate(
+        configuration,
+        {
+            "type": "object",
+            "properties": {
+                "dsn": {"type": "string"},
+                "slot": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "plugin": {"type": "string"},
+                        "create": {"type": "boolean"},
+                        "options": {"type": "object", "properties": {}},  # TODO
+                    },
+                    "required": ["name", "plugin"],
+                },
+                "keepalive_interval": {"type": "number"},
+            },
+            "required": ["dsn"],
+        },
+    )
+    return PostgresLogicalReplicationSlotBackend(
+        dsn=configuration["dsn"],
+        slot_name=configuration["slot"]["name"],
+        slot_plugin=configuration["slot"]["plugin"],
+        slot_create=configuration["slot"].get("create"),
+        slot_options=configuration["slot"].get("options"),
+        keepalive_interval=configuration.get("keepalive_interval"),
+    )

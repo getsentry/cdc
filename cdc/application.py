@@ -3,17 +3,18 @@ import logging
 from datetime import datetime
 
 from cdc.logging import LoggerAdapter
-from cdc.sources import Source
-from cdc.streams import Publisher
+from cdc.registry import Configuration
+from cdc.sources import Source, source_factory
+from cdc.streams import Publisher, publisher_factory
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class Application(object):
-    def __init__(self, configuration):
-        self.source = Source(configuration["source"])
-        self.publisher = Publisher(configuration["stream"])
+    def __init__(self, source: Source, publisher: Publisher):
+        self.source = source
+        self.publisher = publisher
 
     def run(self) -> None:
         self.source.validate()
@@ -140,3 +141,10 @@ class Application(object):
             )
             self.publisher.flush(60.0)
             self.source.commit_positions()
+
+
+def application_factory(configuration: Configuration) -> Application:
+    return Application(
+        source=source_factory(configuration["source"]),
+        publisher=publisher_factory(configuration["stream"]),
+    )

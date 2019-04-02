@@ -1,9 +1,10 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Mapping, Union, Tuple, Type
+from typing import Tuple, Union
 
 from cdc.logging import LoggerAdapter
+from cdc.registry import Registry
 from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
 
@@ -36,8 +37,8 @@ class SourceBackend(ABC):
         raise NotImplementedError
 
 
-from cdc.sources.backends.postgres_logical import PostgresLogicalReplicationSlotBackend
+from cdc.sources.backends.postgres_logical import postgres_logical_factory
 
-registry: Mapping[str, Type[SourceBackend]] = {
-    "postgres_logical": PostgresLogicalReplicationSlotBackend
-}
+registry: Registry[SourceBackend] = Registry(
+    {"postgres_logical": postgres_logical_factory}
+)
