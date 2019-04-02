@@ -38,11 +38,11 @@ def producer(configuration_file):
 
     from cdc.producer import Producer
     from cdc.sources import source_factory
-    from cdc.streams import publisher_factory
+    from cdc.streams import producer_factory
 
     Producer(
         source=source_factory(configuration["source"]),
-        publisher=publisher_factory(configuration["publisher"]),
+        producer=producer_factory(configuration["producer"]),
     ).run()
 
 

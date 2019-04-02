@@ -10,7 +10,7 @@ source:
                     include-xids: 'true'
                     write-in-chunks: 'true'
 
-publisher:
+producer:
     backend:
         type: kafka
         options:

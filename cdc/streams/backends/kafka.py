@@ -7,13 +7,13 @@ from typing import Any, Callable, Mapping, Union
 from cdc.logging import LoggerAdapter
 from cdc.registry import Configuration
 from cdc.sources.types import Payload
-from cdc.streams.backends import PublisherBackend
+from cdc.streams.backends import ProducerBackend
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 
-class KafkaPublisherBackend(PublisherBackend):
+class KafkaProducerBackend(ProducerBackend):
     def __init__(self, topic: str, options: Mapping[str, Any]):
         self.__topic = topic
         self.__producer = Producer(options)
@@ -56,9 +56,9 @@ class KafkaPublisherBackend(PublisherBackend):
         self.__producer.flush(timeout)
 
 
-def kafka_publisher_backend_factory(
+def kafka_producer_backend_factory(
     configuration: Configuration
-) -> KafkaPublisherBackend:
+) -> KafkaProducerBackend:
     jsonschema.validate(
         configuration,
         {
@@ -70,6 +70,6 @@ def kafka_publisher_backend_factory(
             "required": ["topic"],
         },
     )
-    return KafkaPublisherBackend(
+    return KafkaProducerBackend(
         topic=configuration["topic"], options=configuration["options"]
     )

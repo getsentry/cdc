@@ -3,11 +3,11 @@ from typing import Callable
 
 from cdc.registry import Configuration
 from cdc.sources.types import Payload
-from cdc.streams.backends import PublisherBackend, publisher_registry
+from cdc.streams.backends import ProducerBackend, producer_registry
 
 
-class Publisher(object):
-    def __init__(self, backend: PublisherBackend):
+class Producer(object):
+    def __init__(self, backend: ProducerBackend):
         self.__backend = backend
 
     def __repr__(self) -> str:
@@ -31,7 +31,7 @@ class Publisher(object):
         self.__backend.flush(timeout)
 
 
-def publisher_factory(configuration: Configuration) -> Publisher:
+def producer_factory(configuration: Configuration) -> Producer:
     jsonschema.validate(
         configuration,
         {
@@ -49,8 +49,8 @@ def publisher_factory(configuration: Configuration) -> Publisher:
             "required": ["backend"],
         },
     )
-    return Publisher(
-        backend=publisher_registry.new(
+    return Producer(
+        backend=producer_registry.new(
             configuration["backend"]["type"], configuration["backend"]["options"]
         )
     )
