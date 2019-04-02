@@ -36,7 +36,14 @@ def main(log_level, logging_configuration):
 def producer(configuration_file):
     configuration = yaml.load(configuration_file, Loader=yaml.SafeLoader)
 
-    raise NotImplementedError
+    from cdc.producer import Producer
+    from cdc.sources import source_factory
+    from cdc.streams import publisher_factory
+
+    Producer(
+        source=source_factory(configuration["source"]),
+        publisher=publisher_factory(configuration["publisher"]),
+    ).run()
 
 
 @main.command(help="Consume changes from the stream and apply them to the target.")
