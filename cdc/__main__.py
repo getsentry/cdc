@@ -1,21 +1,38 @@
+import click
 import logging, logging.config
-import optparse
 import yaml
 
-from cdc.application import application_factory
+
+logging.addLevelName(5, "TRACE")
 
 
-parser = optparse.OptionParser()
-parser.add_option("-f", "--configuration-file", default="configuration.yaml")
-parser.add_option("--log-level")
-options, arguments = parser.parse_args()
+@click.group()
+@click.option(
+    "--log-level",
+    type=click.Choice([name for level, name in sorted(logging._levelToName.items())]),
+    default=None,
+    help="Override the root logger level.",
+)
+def main(log_level):
+    if log_level is not None:
+        logging.getLogger().setLevel(logging._nameToLevel[log_level])
 
-configuration = yaml.load(open(options.configuration_file))
 
-if configuration["logging"]:
-    logging.config.dictConfig(configuration["logging"])
+@main.command(help="Extract changes from the source and write them to the stream.")
+@click.argument("configuration_file", type=click.File("r"))
+def producer(configuration_file):
+    configuration = yaml.load(configuration_file, Loader=yaml.SafeLoader)
 
-if options.log_level is not None:
-    logging.getLogger().setLevel(logging._nameToLevel[options.log_level])
+    raise NotImplementedError
 
-application_factory(configuration).run()
+
+@main.command(help="Consume changes from the stream and apply them to the target.")
+@click.argument("configuration_file", type=click.File("r"))
+def consumer(configuration_file):
+    configuration = yaml.load(configuration_file, Loader=yaml.SafeLoader)
+
+    raise NotImplementedError
+
+
+if __name__ == "__main__":
+    main()
