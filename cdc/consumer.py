@@ -1,12 +1,15 @@
 import itertools
+import json
 import logging
 import psycopg2
 import requests
 import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterable, Iterator, NamedTuple, Sequence, Union
+from datetime import datetime
+from typing import Any, Iterable, Iterator, Mapping, NamedTuple, Sequence, Union
 from urllib.parse import urljoin, urlencode
+from confluent_kafka import Consumer as KafkaConsumer
 
 from cdc.logging import LoggerAdapter
 
@@ -243,61 +246,199 @@ def bootstrap(
 
 """
 
-def bootstrap_pgbench():
-    bootstrap(
-        PostgresExportManager("postgres://postgres@localhost:5432/postgres"),
-        ClickhouseLoader("http://localhost:8123", "pgbench"),
+"""
+
+
+@dataclass
+class Begin(object):
+    timestamp: datetime
+
+
+@dataclass
+class Commit(object):
+    pass
+
+
+@dataclass
+class Insert(object):
+    table: str
+    data: Mapping[str, Any]
+
+
+@dataclass
+class Update(object):
+    table: str
+    keys: Mapping[str, Any]
+    data: Mapping[str, Any]
+
+
+@dataclass
+class Delete(object):
+    table: str
+    keys: Mapping[str, Any]
+
+
+TransactionMessage = Union[Begin, Insert, Update, Delete, Commit]
+
+
+class Decoder(object):
+    def decode(self, payload) -> Iterator[TransactionMessage]:
+        return iter([payload])
+
+
+class Wal2JsonDecoder(object):
+    def decode(self, payload):
+        data = json.loads(payload)
+
+        yield Begin(timestamp=datetime.strptime(data['timestamp'].split('+')[0], "%Y-%m-%d %H:%M:%S.%f"))  # XXX
+
+        for change in data['change']:
+            kind = change['kind']
+            if kind == 'insert':
+                yield Insert(
+                    table=change['table'],
+                    data=dict(zip(change['columnnames'], change['columnvalues'])),
+                )
+            elif kind == 'update':
+                yield Update(
+                    table=change['table'],
+                    keys=dict(zip(change['oldkeys']['keynames'], change['oldkeys']['keyvalues'])),
+                    data=dict(zip(change['columnnames'], change['columnvalues'])),
+                )
+            elif kind == 'delete':
+                yield Delete(
+                    table=change['table'],
+                    keys=dict(zip(change['oldkeys']['keynames'], change['oldkeys']['keyvalues'])),
+                )
+            else:
+                raise NotImplementedError
+
+        yield Commit()
+
+
+class KafkaConsumerBackend(object):
+    def __init__(self, topic, options):
+        self.__topic = topic
+        self.__consumer = KafkaConsumer(options)
+        self.__consumer.subscribe([topic])
+
+    def poll(self):
+        message = self.__consumer.poll()
+        if message is not None:
+            return message.value()
+
+
+class Consumer(object):
+    def __init__(self, backend, decoder):
+        self.__backend = backend
+        self.__decoder = decoder
+
+    def poll(self):
+        message = self.__backend.poll()
+        if message is not None:
+            return self.__decoder.decode(message)
+
+
+class StreamWriter(object):
+    def write(self, message: TransactionMessage):
+        print(message)
+
+
+def stream(consumer: Consumer, writer: StreamWriter, tables):
+    rewrite_changes = mapper(tables)
+
+    while True:
+        messages = consumer.poll()
+        if messages is None:
+            continue
+
+        for message in rewrite_changes(messages):
+            writer.write(message)
+
+
+def mapper(tables):
+    tm = {t.source.name: (t.destination.name, {c.source.name: c.destination.name for c in t.columns}) for t in tables}
+
+    def apply(messages):
+        has_change = False
+        begin = next(messages)
+        for m in messages:
+            if isinstance(m, (Insert, Update, Delete)):
+                if m.table not in tm:
+                    print('skipping ', m.table)
+                    continue
+                if not has_change:
+                    yield begin
+                    has_change = True
+
+                table, columns = tm[m.table]
+                if isinstance(m, Insert):
+                    yield Insert(table=table, data={columns[k]: v for k, v in m.data.items() if k in columns})
+                elif isinstance(m, Update):
+                    yield Update(table=table, keys={columns[k]: v for k, v in m.keys.items() if k in columns}, data={columns[k]: v for k, v in m.data.items() if k in columns})
+                elif isinstance(m, Delete):
+                    yield Delete(table=table, keys={columns[k]: v for k, v in m.keys.items() if k in columns})
+                else:
+                    raise Exception
+            elif isinstance(m, Commit):
+                if has_change:
+                    yield m
+
+    return apply
+
+
+
+pgbench_tables = [
+    TableMapping(
+        SourceTable("pgbench_accounts", "aid"),
+        DestinationTable("accounts"),
         [
-            TableMapping(
-                SourceTable("pgbench_accounts", "aid"),
-                DestinationTable("accounts"),
-                [
-                    ColumnMapping("aid", "account_id"),
-                    ColumnMapping("bid", "branch_id"),
-                    ColumnMapping("abalance", "balance"),
-                ],
-            ),
-            TableMapping(
-                SourceTable("pgbench_branches", "bid"),
-                DestinationTable("branches"),
-                [
-                    ColumnMapping("bid", "branch_id"),
-                    ColumnMapping("bbalance", "balance"),
-                ],
-            ),
-            TableMapping(
-                SourceTable("pgbench_tellers", "tid"),
-                DestinationTable("tellers"),
-                [
-                    ColumnMapping("tid", "teller_id"),
-                    ColumnMapping("bid", "branch_id"),
-                    ColumnMapping("tbalance", "balance"),
-                ],
-            ),
+            ColumnMapping(SourceColumn("aid"), DestinationColumn("account_id")),
+            ColumnMapping(SourceColumn("bid"), DestinationColumn("branch_id")),
+            ColumnMapping(SourceColumn("abalance"), DestinationColumn("balance")),
         ],
+    ),
+    TableMapping(
+        SourceTable("pgbench_branches", "bid"),
+        DestinationTable("branches"),
+        [
+            ColumnMapping(SourceColumn("bid"), DestinationColumn("branch_id")),
+            ColumnMapping(SourceColumn("bbalance"), DestinationColumn("balance")),
+        ],
+    ),
+    TableMapping(
+        SourceTable("pgbench_tellers", "tid"),
+        DestinationTable("tellers"),
+        [
+            ColumnMapping(SourceColumn("tid"), DestinationColumn("teller_id")),
+            ColumnMapping(SourceColumn("bid"), DestinationColumn("branch_id")),
+            ColumnMapping(SourceColumn("tbalance"), DestinationColumn("balance")),
+        ],
+    ),
+]
+
+
+def test_bootstrap():
+    return bootstrap(
+        PostgresExportManager("postgres://postgres@localhost:5432/pgbench"),
+        ClickhouseLoader("http://localhost:8123", "pgbench"),
+        pgbench_tables,
         concurrency=16,
     )
 
-"""
 
-class Consumer(ABC):
-    pass
-
-
-class KafkaConsumer(Consumer):
-    pass
-
-
-class Writer(ABC):
-    pass
-
-
-class ClickhouseWriter(Writer):
-    pass
-
-
-def stream(consumer: Consumer, writer: Writer):
-    raise NotImplementedError
+def test_stream():
+    import uuid
+    consumer = Consumer(
+        KafkaConsumerBackend('topic', {
+            'bootstrap.servers': 'localhost:9092',
+            'group.id': uuid.uuid1().hex,
+            'enable.partition.eof': 'false',
+        }),
+        Wal2JsonDecoder(),
+    )
+    writer = StreamWriter()
+    return stream(consumer, writer, pgbench_tables)
 
 
 if __name__ == "__main__":
