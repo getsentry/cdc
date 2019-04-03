@@ -5,7 +5,7 @@ import requests
 import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterable, Iterator, NamedTuple, Sequence
+from typing import Any, Iterable, Iterator, NamedTuple, Sequence, Union
 from urllib.parse import urljoin, urlencode
 
 from cdc.logging import LoggerAdapter
@@ -20,9 +20,20 @@ class Range(NamedTuple):
 
 
 @dataclass
+class SourceColumn(object):
+    name: str
+    format: str = '{}'
+
+
+@dataclass
+class DestinationColumn(object):
+    name: str
+
+
+@dataclass
 class ColumnMapping(object):
-    source_name: str
-    destination_name: str
+    source: SourceColumn
+    destination: DestinationColumn
 
 
 @dataclass
@@ -45,7 +56,7 @@ class TableMapping(object):
 
 class Exporter(ABC):
     @abstractmethod
-    def dump(self, table: SourceTable, column_names: Sequence[str], range: Range):
+    def dump(self, table: SourceTable, columns: Sequence[SourceColumn], range: Range):
         pass
 
 
@@ -67,7 +78,7 @@ class PostgresExporter(Exporter):
         self.__dsn = dsn
         self.__exported_snapshot = exported_snapshot
 
-    def dump(self, table: SourceTable, column_names: Sequence[str], range: Range):
+    def dump(self, table: SourceTable, columns: Sequence[SourceColumn], range: Range):
         with psycopg2.connect(self.__dsn) as connection:
             connection.autocommit = False
 
@@ -88,8 +99,9 @@ class PostgresExporter(Exporter):
             ) as f, connection.cursor() as cursor:
                 logger.trace("Fetching %r from %r...", range, table)
                 query = "COPY (SELECT {columns} FROM {table.name} WHERE {table.primary_key} >= {range.lo} AND {table.primary_key} < {range.hi} ORDER BY {table.primary_key} ASC) TO STDOUT".format(
-                    columns=", ".join(column_names), table=table, range=range
+                    columns=", ".join([column.format.format(column.name) for column in columns]), table=table, range=range
                 )
+                logger.trace(query)
                 cursor.copy_expert(query, f)
                 logger.trace(
                     "Fetched %r from %r (%s rows, %3.2f%% full)", range, table, cursor.rowcount, (cursor.rowcount / float(range.hi - range.lo)) * 100,
@@ -98,9 +110,10 @@ class PostgresExporter(Exporter):
 
 
 class PostgresExportManager(ExportManager):
-    def __init__(self, dsn: str):
+    def __init__(self, dsn: str, chunk: int = 1000000):
         self.__dsn = dsn
         self.__connection = None
+        self.__chunk = chunk
 
     def __enter__(self) -> PostgresExporter:
         connection = self.__connection = psycopg2.connect(self.__dsn)
@@ -121,7 +134,6 @@ class PostgresExportManager(ExportManager):
 
     def get_tasks(self, tables: Iterable[SourceTable]) -> Iterator[Iterator[Range]]:
         for table in tables:
-            chunk = 1000000
             with self.__connection.cursor() as cursor:
                 cursor.execute(
                     "SELECT min({table.primary_key}), max({table.primary_key}) FROM {table.name}".format(
@@ -135,18 +147,21 @@ class PostgresExportManager(ExportManager):
 
             def get_ranges() -> Iterator[Range]:
                 for i in itertools.count(0):
-                    key_lo = min_key + (chunk * i)
-                    key_hi = min(min_key + (chunk * (i + 1)), max_key + 1)
+                    key_lo = min_key + (self.__chunk * i)
+                    key_hi = min(min_key + (self.__chunk * (i + 1)), max_key + 1)
                     yield Range(key_lo, key_hi)
                     if key_hi > max_key:
                         break
 
-            yield get_ranges()
+            if min_key is None or max_key is None:
+                yield iter([])
+            else:
+                yield get_ranges()
 
 
 class Loader(ABC):
     @abstractmethod
-    def load(self, table: DestinationTable, column_names: Sequence[str], data) -> None:
+    def load(self, table: DestinationTable, columns: Sequence[DestinationColumn], data) -> None:
         pass
 
 
@@ -155,7 +170,7 @@ class ClickhouseLoader(Loader):
         self.__url = url
         self.__database = database
 
-    def load(self, table: DestinationTable, column_names: Sequence[str], data) -> None:
+    def load(self, table: DestinationTable, columns: Sequence[DestinationTable], data) -> None:
         url = urljoin(
             self.__url,
             "?"
@@ -163,13 +178,14 @@ class ClickhouseLoader(Loader):
                 {
                     "database": self.__database,
                     "query": "INSERT INTO {table} ({columns}) FORMAT TabSeparated".format(
-                        table=table.name, columns=", ".join(column_names)
+                        table=table.name, columns=", ".join([column.name for column in columns])
                     ),
                 }
             ),
         )
         response = requests.post(url, data=data)
-        response.raise_for_status()
+        if response.status_code != 200:
+            raise Exception(response.content)
         response.close()
 
 
@@ -194,10 +210,10 @@ def worker(exporter, loader, queue):
         try:
             loader.load(
                 table.destination,
-                [column.destination_name for column in table.columns],
+                [column.destination for column in table.columns],
                 exporter.dump(
                     table.source,
-                    [column.source_name for column in table.columns],
+                    [column.source for column in table.columns],
                     range,
                 ),
             )
@@ -225,9 +241,9 @@ def bootstrap(
 
         queue.join()
 
+"""
 
-if __name__ == "__main__":
-    _setup_logging()
+def bootstrap_pgbench():
     bootstrap(
         PostgresExportManager("postgres://postgres@localhost:5432/postgres"),
         ClickhouseLoader("http://localhost:8123", "pgbench"),
@@ -262,6 +278,7 @@ if __name__ == "__main__":
         concurrency=16,
     )
 
+"""
 
 class Consumer(ABC):
     pass
@@ -281,3 +298,7 @@ class ClickhouseWriter(Writer):
 
 def stream(consumer: Consumer, writer: Writer):
     raise NotImplementedError
+
+
+if __name__ == "__main__":
+    _setup_logging()
