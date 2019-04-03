@@ -49,8 +49,6 @@ def producer(configuration_file):
 @main.command(help="Consume changes from the stream and apply them to the target.")
 @click.argument("configuration_file", type=click.File("r"))
 def consumer(configuration_file):
-    configuration = yaml.load(configuration_file, Loader=yaml.SafeLoader)
-
     raise NotImplementedError
 
 
