@@ -27,7 +27,7 @@ class Range(NamedTuple):
 @dataclass
 class SourceColumn(object):
     name: str
-    format: str = '{}'
+    format: str = "{}"
 
 
 @dataclass
@@ -104,12 +104,20 @@ class PostgresExporter(Exporter):
             ) as f, connection.cursor() as cursor:
                 logger.trace("Fetching %r from %r...", range, table)
                 query = "COPY (SELECT {columns}, date_trunc('seconds', now())::timestamp as mtime FROM {table.name} WHERE {table.primary_key} >= {range.lo} AND {table.primary_key} < {range.hi} ORDER BY {table.primary_key} ASC) TO STDOUT".format(
-                    columns=", ".join([column.format.format(column.name) for column in columns]), table=table, range=range
+                    columns=", ".join(
+                        [column.format.format(column.name) for column in columns]
+                    ),
+                    table=table,
+                    range=range,
                 )
                 logger.trace(query)
                 cursor.copy_expert(query, f)
                 logger.trace(
-                    "Fetched %r from %r (%s rows, %3.2f%% full)", range, table, cursor.rowcount, (cursor.rowcount / float(range.hi - range.lo)) * 100,
+                    "Fetched %r from %r (%s rows, %3.2f%% full)",
+                    range,
+                    table,
+                    cursor.rowcount,
+                    (cursor.rowcount / float(range.hi - range.lo)) * 100,
                 )
                 return open(f.name, "rb")
 
@@ -166,7 +174,9 @@ class PostgresExportManager(ExportManager):
 
 class Loader(ABC):
     @abstractmethod
-    def load(self, table: DestinationTable, columns: Sequence[DestinationColumn], data) -> None:
+    def load(
+        self, table: DestinationTable, columns: Sequence[DestinationColumn], data
+    ) -> None:
         pass
 
 
@@ -175,7 +185,9 @@ class ClickhouseLoader(Loader):
         self.__url = url
         self.__database = database
 
-    def load(self, table: DestinationTable, columns: Sequence[DestinationTable], data) -> None:
+    def load(
+        self, table: DestinationTable, columns: Sequence[DestinationTable], data
+    ) -> None:
         url = urljoin(
             self.__url,
             "?"
@@ -183,7 +195,8 @@ class ClickhouseLoader(Loader):
                 {
                     "database": self.__database,
                     "query": "INSERT INTO {table} ({columns}, mtime) FORMAT TabSeparated".format(
-                        table=table.name, columns=", ".join([column.name for column in columns])
+                        table=table.name,
+                        columns=", ".join([column.name for column in columns]),
                     ),
                 }
             ),
@@ -200,8 +213,7 @@ from multiprocessing import Event, JoinableQueue, Process
 def _setup_logging():
     logging.addLevelName(5, "TRACE")
     logging.basicConfig(
-        level=5,
-        format='%(asctime)s %(process)7d %(levelname)-8s %(message)s',
+        level=5, format="%(asctime)s %(process)7d %(levelname)-8s %(message)s"
     )
 
 
@@ -211,25 +223,38 @@ def worker(exporter, loader, queue):
     while True:
         table, range = queue.get()
 
-        logger.debug("Copying data from %r to %r %r...", table.source.name, table.destination.name, range)
+        logger.debug(
+            "Copying data from %r to %r %r...",
+            table.source.name,
+            table.destination.name,
+            range,
+        )
         try:
             loader.load(
                 table.destination,
                 [column.destination for column in table.columns],
                 exporter.dump(
-                    table.source,
-                    [column.source for column in table.columns],
-                    range,
+                    table.source, [column.source for column in table.columns], range
                 ),
             )
         except Exception as error:
-            logger.error("Failed to copy data from %r to %r, %r due to error: %s", table.source.name, table.destination.name, range, error, exc_info=True)
+            logger.error(
+                "Failed to copy data from %r to %r, %r due to error: %s",
+                table.source.name,
+                table.destination.name,
+                range,
+                error,
+                exc_info=True,
+            )
         finally:
             queue.task_done()
 
 
 def bootstrap(
-    export_manager: ExportManager, loader: Loader, tables: Sequence[TableMapping], concurrency: int,
+    export_manager: ExportManager,
+    loader: Loader,
+    tables: Sequence[TableMapping],
+    concurrency: int,
 ):
     with export_manager as snapshot_exporter:
         queue = JoinableQueue()
@@ -240,11 +265,14 @@ def bootstrap(
             process.start()
             pool.add(process)
 
-        for table, chunks in zip(tables, export_manager.get_tasks(table.source for table in tables)):
+        for table, chunks in zip(
+            tables, export_manager.get_tasks(table.source for table in tables)
+        ):
             for chunk in chunks:
                 queue.put((table, chunk))
 
         queue.join()
+
 
 """
 
@@ -292,25 +320,39 @@ class Wal2JsonDecoder(object):
     def decode(self, payload):
         data = json.loads(payload)
 
-        yield Begin(timestamp=datetime.strptime(data['timestamp'].split('+')[0], "%Y-%m-%d %H:%M:%S.%f"))  # XXX
+        yield Begin(
+            timestamp=datetime.strptime(
+                data["timestamp"].split("+")[0], "%Y-%m-%d %H:%M:%S.%f"
+            )
+        )  # XXX
 
-        for change in data['change']:
-            kind = change['kind']
-            if kind == 'insert':
+        for change in data["change"]:
+            kind = change["kind"]
+            if kind == "insert":
                 yield Insert(
-                    table=change['table'],
-                    data=dict(zip(change['columnnames'], change['columnvalues'])),
+                    table=change["table"],
+                    data=dict(zip(change["columnnames"], change["columnvalues"])),
                 )
-            elif kind == 'update':
+            elif kind == "update":
                 yield Update(
-                    table=change['table'],
-                    keys=dict(zip(change['oldkeys']['keynames'], change['oldkeys']['keyvalues'])),
-                    data=dict(zip(change['columnnames'], change['columnvalues'])),
+                    table=change["table"],
+                    keys=dict(
+                        zip(
+                            change["oldkeys"]["keynames"],
+                            change["oldkeys"]["keyvalues"],
+                        )
+                    ),
+                    data=dict(zip(change["columnnames"], change["columnvalues"])),
                 )
-            elif kind == 'delete':
+            elif kind == "delete":
                 yield Delete(
-                    table=change['table'],
-                    keys=dict(zip(change['oldkeys']['keynames'], change['oldkeys']['keyvalues'])),
+                    table=change["table"],
+                    keys=dict(
+                        zip(
+                            change["oldkeys"]["keynames"],
+                            change["oldkeys"]["keyvalues"],
+                        )
+                    ),
                 )
             else:
                 raise NotImplementedError
@@ -358,7 +400,7 @@ class ClickhouseWriter(object):
             return
 
         mtime = begin.timestamp
-        logger.trace('Starting transaction: %r', begin)
+        logger.trace("Starting transaction: %r", begin)
 
         # collect records by type and table
         inserts = defaultdict(list)
@@ -379,14 +421,16 @@ class ClickhouseWriter(object):
 
         for t, ms in inserts.items():
             columns = set(ms[0].data)  # XXX
-            query = 'INSERT INTO {table} ({columns}, mtime) VALUES'.format(table=t, columns=', '.join(columns))
-            params = [{'mtime': mtime, **m.data} for m in ms]
+            query = "INSERT INTO {table} ({columns}, mtime) VALUES".format(
+                table=t, columns=", ".join(columns)
+            )
+            params = [{"mtime": mtime, **m.data} for m in ms]
             self.__client.execute(query, params)
 
         for t, ms in deletes.items():
-            print('would write', len(ms), 'deletes to', t)
+            print("would write", len(ms), "deletes to", t)
 
-        logger.trace('Completed transaction')
+        logger.trace("Completed transaction")
 
 
 def stream(consumer: Consumer, writer: StreamWriter, tables):
@@ -401,7 +445,13 @@ def stream(consumer: Consumer, writer: StreamWriter, tables):
 
 
 def mapper(tables):
-    tm = {t.source.name: (t.destination.name, {c.source.name: c.destination.name for c in t.columns}) for t in tables}
+    tm = {
+        t.source.name: (
+            t.destination.name,
+            {c.source.name: c.destination.name for c in t.columns},
+        )
+        for t in tables
+    }
 
     def apply(messages):
         has_change = False
@@ -409,7 +459,7 @@ def mapper(tables):
         for m in messages:
             if isinstance(m, (Insert, Update, Delete)):
                 if m.table not in tm:
-                    print('skipping ', m.table)
+                    print("skipping ", m.table)
                     continue
                 if not has_change:
                     yield begin
@@ -417,11 +467,21 @@ def mapper(tables):
 
                 table, columns = tm[m.table]
                 if isinstance(m, Insert):
-                    yield Insert(table=table, data={columns[k]: v for k, v in m.data.items() if k in columns})
+                    yield Insert(
+                        table=table,
+                        data={columns[k]: v for k, v in m.data.items() if k in columns},
+                    )
                 elif isinstance(m, Update):
-                    yield Update(table=table, keys={columns[k]: v for k, v in m.keys.items() if k in columns}, data={columns[k]: v for k, v in m.data.items() if k in columns})
+                    yield Update(
+                        table=table,
+                        keys={columns[k]: v for k, v in m.keys.items() if k in columns},
+                        data={columns[k]: v for k, v in m.data.items() if k in columns},
+                    )
                 elif isinstance(m, Delete):
-                    yield Delete(table=table, keys={columns[k]: v for k, v in m.keys.items() if k in columns})
+                    yield Delete(
+                        table=table,
+                        keys={columns[k]: v for k, v in m.keys.items() if k in columns},
+                    )
                 else:
                     raise Exception
             elif isinstance(m, Commit):
@@ -429,7 +489,6 @@ def mapper(tables):
                     yield m
 
     return apply
-
 
 
 pgbench_tables = [
@@ -473,17 +532,19 @@ def test_bootstrap():
 
 def test_stream():
     import uuid
+
     consumer = Consumer(
-        KafkaConsumerBackend('topic', {
-            'bootstrap.servers': 'localhost:9092',
-            'group.id': uuid.uuid1().hex,
-            'enable.partition.eof': 'false',
-        }),
+        KafkaConsumerBackend(
+            "topic",
+            {
+                "bootstrap.servers": "localhost:9092",
+                "group.id": uuid.uuid1().hex,
+                "enable.partition.eof": "false",
+            },
+        ),
         Wal2JsonDecoder(),
     )
-    writer = ClickhouseWriter(
-        Client('localhost', database='pgbench'),
-    )
+    writer = ClickhouseWriter(Client("localhost", database="pgbench"))
     return stream(consumer, writer, pgbench_tables)
 
 
