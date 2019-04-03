@@ -177,8 +177,16 @@ class ClickhouseLoader(Loader):
 from multiprocessing import Event, JoinableQueue, Process
 
 
+def _setup_logging():
+    logging.addLevelName(5, "TRACE")
+    logging.basicConfig(
+        level=5,
+        format='%(asctime)s %(process)7d %(levelname)-8s %(message)s',
+    )
+
+
 def worker(exporter, loader, queue):
-    logging.basicConfig(level=5)
+    _setup_logging()
 
     while True:
         table, range = queue.get()
@@ -218,7 +226,7 @@ def bootstrap(
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=5)
+    _setup_logging()
     bootstrap(
         PostgresExportManager("postgres://postgres@localhost:5432/postgres"),
         ClickhouseLoader("http://localhost:8123", "pgbench"),
