@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Any, Iterable, Iterator, Mapping, NamedTuple, Sequence, Union
 from urllib.parse import urljoin, urlencode
 from confluent_kafka import Consumer as KafkaConsumer
+from clickhouse_driver import Client
+from collections import defaultdict
 
 from cdc.logging import LoggerAdapter
 
@@ -340,8 +342,51 @@ class Consumer(object):
 
 
 class StreamWriter(object):
-    def write(self, message: TransactionMessage):
-        print(message)
+    def write(self, messages: Iterator[TransactionMessage]):
+        for message in messages:
+            print(message)
+
+
+class ClickhouseWriter(object):
+    def __init__(self, client):
+        self.__client = client
+
+    def write(self, messages: Iterator[TransactionMessage]):
+        try:
+            begin = next(messages)
+        except StopIteration:
+            return
+
+        mtime = begin.timestamp
+        logger.trace('Starting transaction: %r', begin)
+
+        # collect records by type and table
+        inserts = defaultdict(list)
+        deletes = defaultdict(list)
+
+        for m in messages:
+            if isinstance(m, Insert):
+                inserts[m.table].append(m)
+            elif isinstance(m, Update):
+                # all updates create a replacing insert
+                inserts[m.table].append(m)
+                # if the primary key changed, this is also a deletion on the
+                # old record since it will not be replaced
+                if not all(m.data[k] == v for k, v in m.keys.items()):
+                    deletes[m.table].append(m)
+            elif isinstance(m, Delete):
+                deletes[m.table].append(m)
+
+        for t, ms in inserts.items():
+            columns = set(ms[0].data)  # XXX
+            query = 'INSERT INTO {table} ({columns}, mtime) VALUES'.format(table=t, columns=', '.join(columns))
+            params = [{'mtime': mtime, **m.data} for m in ms]
+            self.__client.execute(query, params)
+
+        for t, ms in deletes.items():
+            print('would write', len(ms), 'deletes to', t)
+
+        logger.trace('Completed transaction')
 
 
 def stream(consumer: Consumer, writer: StreamWriter, tables):
@@ -352,8 +397,7 @@ def stream(consumer: Consumer, writer: StreamWriter, tables):
         if messages is None:
             continue
 
-        for message in rewrite_changes(messages):
-            writer.write(message)
+        writer.write(rewrite_changes(messages))
 
 
 def mapper(tables):
@@ -437,7 +481,9 @@ def test_stream():
         }),
         Wal2JsonDecoder(),
     )
-    writer = StreamWriter()
+    writer = ClickhouseWriter(
+        Client('localhost', database='pgbench'),
+    )
     return stream(consumer, writer, pgbench_tables)
 
 
