@@ -98,7 +98,7 @@ class PostgresExporter(Exporter):
                 delete=False,  # TODO: The loader should keep track and clean this up on exit.
             ) as f, connection.cursor() as cursor:
                 logger.trace("Fetching %r from %r...", range, table)
-                query = "COPY (SELECT {columns} FROM {table.name} WHERE {table.primary_key} >= {range.lo} AND {table.primary_key} < {range.hi} ORDER BY {table.primary_key} ASC) TO STDOUT".format(
+                query = "COPY (SELECT {columns}, date_trunc('seconds', now())::timestamp as mtime FROM {table.name} WHERE {table.primary_key} >= {range.lo} AND {table.primary_key} < {range.hi} ORDER BY {table.primary_key} ASC) TO STDOUT".format(
                     columns=", ".join([column.format.format(column.name) for column in columns]), table=table, range=range
                 )
                 logger.trace(query)
@@ -177,7 +177,7 @@ class ClickhouseLoader(Loader):
             + urlencode(
                 {
                     "database": self.__database,
-                    "query": "INSERT INTO {table} ({columns}) FORMAT TabSeparated".format(
+                    "query": "INSERT INTO {table} ({columns}, mtime) FORMAT TabSeparated".format(
                         table=table.name, columns=", ".join([column.name for column in columns])
                     ),
                 }
