@@ -206,7 +206,7 @@ def worker(exporter, loader, queue):
     while True:
         table, range = queue.get()
 
-        logger.debug("Loading data for %r (%r)...", table, range)
+        logger.debug("Copying data from %r to %r %r...", table.source.name, table.destination.name, range)
         try:
             loader.load(
                 table.destination,
@@ -218,7 +218,7 @@ def worker(exporter, loader, queue):
                 ),
             )
         except Exception as error:
-            logger.error("Failed to load data for %r (%r) due to error: %s", table, range, error, exc_info=True)
+            logger.error("Failed to copy data from %r to %r, %r due to error: %s", table.source.name, table.destination.name, range, error, exc_info=True)
         finally:
             queue.task_done()
 
