@@ -94,7 +94,7 @@ class PostgresExporter(Exporter):
                 logger.trace(
                     "Fetched %r from %r (%s rows, %3.2f%% full)", range, table, cursor.rowcount, (cursor.rowcount / float(range.hi - range.lo)) * 100,
                 )
-                yield open(f.name, "rb")
+                return open(f.name, "rb")
 
 
 class PostgresExportManager(ExportManager):
@@ -156,22 +156,21 @@ class ClickhouseLoader(Loader):
         self.__database = database
 
     def load(self, table: DestinationTable, column_names: Sequence[str], data) -> None:
-        for page in data:
-            url = urljoin(
-                self.__url,
-                "?"
-                + urlencode(
-                    {
-                        "database": self.__database,
-                        "query": "INSERT INTO {table} ({columns}) FORMAT TabSeparated".format(
-                            table=table.name, columns=", ".join(column_names)
-                        ),
-                    }
-                ),
-            )
-            response = requests.post(url, data=page)
-            response.raise_for_status()
-            response.close()
+        url = urljoin(
+            self.__url,
+            "?"
+            + urlencode(
+                {
+                    "database": self.__database,
+                    "query": "INSERT INTO {table} ({columns}) FORMAT TabSeparated".format(
+                        table=table.name, columns=", ".join(column_names)
+                    ),
+                }
+            ),
+        )
+        response = requests.post(url, data=data)
+        response.raise_for_status()
+        response.close()
 
 
 from multiprocessing import Event, JoinableQueue, Process
@@ -202,6 +201,8 @@ def worker(exporter, loader, queue):
                     range,
                 ),
             )
+        except Exception as error:
+            logger.error("Failed to load data for %r (%r) due to error: %s", table, range, error, exc_info=True)
         finally:
             queue.task_done()
 
@@ -258,7 +259,7 @@ if __name__ == "__main__":
                 ],
             ),
         ],
-        concurrency=4,
+        concurrency=16,
     )
 
 
