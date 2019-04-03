@@ -92,7 +92,7 @@ class PostgresExporter(Exporter):
                 )
                 cursor.copy_expert(query, f)
                 logger.trace(
-                    "Fetched %r from %r (%s rows.)", range, table, cursor.rowcount
+                    "Fetched %r from %r (%s rows, %3.2f%% full)", range, table, cursor.rowcount, (cursor.rowcount / float(range.hi - range.lo)) * 100,
                 )
                 yield open(f.name, "rb")
 
@@ -174,24 +174,47 @@ class ClickhouseLoader(Loader):
             response.close()
 
 
+from multiprocessing import Event, JoinableQueue, Process
+
+
+def worker(exporter, loader, queue):
+    logging.basicConfig(level=5)
+
+    while True:
+        table, range = queue.get()
+
+        logger.debug("Loading data for %r (%r)...", table, range)
+        try:
+            loader.load(
+                table.destination,
+                [column.destination_name for column in table.columns],
+                exporter.dump(
+                    table.source,
+                    [column.source_name for column in table.columns],
+                    range,
+                ),
+            )
+        finally:
+            queue.task_done()
+
+
 def bootstrap(
-    export_manager: ExportManager, loader: Loader, tables: Sequence[TableMapping]
+    export_manager: ExportManager, loader: Loader, tables: Sequence[TableMapping], concurrency: int,
 ):
     with export_manager as snapshot_exporter:
-        for table, ranges in zip(
-            tables, export_manager.get_tasks(table.source for table in tables)
-        ):
-            for range in ranges:
-                logger.debug("Loading data for %r (%r)...", table, range)
-                loader.load(
-                    table.destination,
-                    [column.destination_name for column in table.columns],
-                    snapshot_exporter.dump(
-                        table.source,
-                        [column.source_name for column in table.columns],
-                        range,
-                    ),
-                )
+        queue = JoinableQueue()
+        pool = set()
+        for _ in range(concurrency):
+            process = Process(target=worker, args=(snapshot_exporter, loader, queue))
+            process.daemon = True
+            process.start()
+            pool.add(process)
+
+        for table, chunks in zip(tables, export_manager.get_tasks(table.source for table in tables)):
+            for chunk in chunks:
+                queue.put((table, chunk))
+
+        queue.join()
 
 
 if __name__ == "__main__":
@@ -227,6 +250,7 @@ if __name__ == "__main__":
                 ],
             ),
         ],
+        concurrency=4,
     )
 
 
