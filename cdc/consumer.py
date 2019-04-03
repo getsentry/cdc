@@ -43,32 +43,26 @@ class TableMapping(object):
     columns: Sequence[ColumnMapping]
 
 
-class SnapshotDataExporter(ABC):
+class Exporter(ABC):
     @abstractmethod
     def dump(self, table: SourceTable, column_names: Sequence[str], range: Range):
         pass
 
 
-@dataclass
-class ExportTask(object):
-    table: SourceTable
-    range: Range
-
-
-class SnapshotDataExporterManager(ABC):
+class ExportManager(ABC):
     @abstractmethod
-    def __enter__(self) -> SnapshotDataExporter:
+    def __enter__(self) -> Exporter:
         pass
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
         return False
 
     @abstractmethod
-    def get_tasks(self, tables: Iterable[SourceTable]) -> Iterator[Range]:
+    def get_tasks(self, tables: Iterable[SourceTable]) -> Iterator[Iterator[Range]]:
         pass
 
 
-class PostgresSnapshotDataExporter(SnapshotDataExporter):
+class PostgresExporter(Exporter):
     def __init__(self, dsn: str, exported_snapshot: str):
         self.__dsn = dsn
         self.__exported_snapshot = exported_snapshot
@@ -103,12 +97,12 @@ class PostgresSnapshotDataExporter(SnapshotDataExporter):
                 yield open(f.name, "rb")
 
 
-class PostgresSnapshotDataExporterManager(SnapshotDataExporterManager):
+class PostgresExportManager(ExportManager):
     def __init__(self, dsn: str):
         self.__dsn = dsn
         self.__connection = None
 
-    def __enter__(self) -> SnapshotDataExporter:
+    def __enter__(self) -> PostgresExporter:
         connection = self.__connection = psycopg2.connect(self.__dsn)
         connection.autocommit = False
 
@@ -119,7 +113,7 @@ class PostgresSnapshotDataExporterManager(SnapshotDataExporterManager):
             cursor.execute("SELECT pg_export_snapshot()")
             self.__exported_snapshot = cursor.fetchone()[0]
 
-        return PostgresSnapshotDataExporter(self.__dsn, self.__exported_snapshot)
+        return PostgresExporter(self.__dsn, self.__exported_snapshot)
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
         self.__connection.close()
@@ -181,9 +175,7 @@ class ClickhouseLoader(Loader):
 
 
 def bootstrap(
-    export_manager: SnapshotDataExporterManager,
-    loader: Loader,
-    tables: Sequence[TableMapping],
+    export_manager: ExportManager, loader: Loader, tables: Sequence[TableMapping]
 ):
     with export_manager as snapshot_exporter:
         for table, ranges in zip(
@@ -204,13 +196,9 @@ def bootstrap(
 
 if __name__ == "__main__":
     logging.basicConfig(level=5)
-    exporter = PostgresSnapshotDataExporterManager(
-        "postgres://postgres@localhost:5432/postgres"
-    )
-    loader = ClickhouseLoader("http://localhost:8123", "pgbench")
     bootstrap(
-        exporter,
-        loader,
+        PostgresExportManager("postgres://postgres@localhost:5432/postgres"),
+        ClickhouseLoader("http://localhost:8123", "pgbench"),
         [
             TableMapping(
                 SourceTable("pgbench_accounts", "aid"),
