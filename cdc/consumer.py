@@ -8,7 +8,7 @@ from concurrent.futures.process import ProcessPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from psycopg2 import sql
-from typing import BinaryIO, Iterable, Iterator, Generator, NewType, Sequence
+from typing import BinaryIO, Iterable, Iterator, Generator, NewType, Sequence, Tuple
 from urllib.parse import urljoin, urlencode
 
 from cdc.logging import LoggerAdapter
@@ -59,28 +59,41 @@ class TableMapping:  # not the best name
 
 dump_dsn = 'postgres://postgres@localhost:5432/pgbench'
 
-Snapshot = NewType('Snapshot', str)
+SnapshotIdentifier = NewType('SnapshotIdentifier', str)
+
+
+@dataclass
+class Snapshot:
+    xmin: int
+    xmax: int
+    xip_list: Sequence[int]
+
 
 @contextmanager
-def export_snapshot() -> Generator[Snapshot, None, None]:
+def export_snapshot() -> Generator[Tuple[SnapshotIdentifier, Snapshot], None, None]:
     connection = psycopg2.connect(dump_dsn)
     connection.autocommit = False
 
     with connection.cursor() as cursor:
         cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY, DEFERRABLE")
-        cursor.execute("SELECT pg_export_snapshot()")
-        yield Snapshot(cursor.fetchone()[0])
+        cursor.execute("SELECT txid_current_snapshot(), pg_export_snapshot()")
+        current_snapshot, snapshot_identifier = cursor.fetchone()
+        xmin, xmax, xip_list = current_snapshot.split(':')
+        yield (
+            SnapshotIdentifier(snapshot_identifier),
+            Snapshot(int(xmin), int(xmax), [int(xip) for xip in (xip_list or [])]),
+        )
 
     connection.close()
 
 
-def dump(snapshot: Snapshot, source: Source) -> BinaryIO:
-    logger.debug('Dumping data from %r using snapshot: %s...', source, snapshot)
+def dump(snapshot_identifier: SnapshotIdentifier, source: Source) -> BinaryIO:
+    logger.debug('Dumping data from %r using snapshot: %s...', source, snapshot_identifier)
 
     connection = psycopg2.connect(dump_dsn)
     with connection.cursor() as cursor:
         cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY")
-        cursor.execute("SET TRANSACTION SNAPSHOT %s", [snapshot])
+        cursor.execute("SET TRANSACTION SNAPSHOT %s", [snapshot_identifier])
 
     output = tempfile.NamedTemporaryFile(
         mode="wb",
@@ -121,15 +134,20 @@ def load(destination: Destination, data: BinaryIO) -> None:
     response.close()
 
 
-def copy(snapshot: Snapshot, table_mapping: TableMapping) -> None:
-    load(table_mapping.destination, dump(snapshot, table_mapping.source))
+def copy(snapshot_identifier: SnapshotIdentifier, table_mapping: TableMapping) -> None:
+    load(table_mapping.destination, dump(snapshot_identifier, table_mapping.source))
 
 
-def bootstrap(table_mappings: Iterable[TableMapping]) -> None:
-    with ProcessPoolExecutor() as pool, export_snapshot() as snapshot:
-        futures = [pool.submit(copy, snapshot, table_mapping) for table_mapping in table_mappings]
+def bootstrap(table_mappings: Iterable[TableMapping]) -> Snapshot:
+    with ProcessPoolExecutor() as pool, export_snapshot() as (snapshot_identifier, snapshot):
+        futures = [pool.submit(copy, snapshot_identifier, table_mapping) for table_mapping in table_mappings]
         for future in as_completed(futures):
             future.result()
+    return snapshot
+
+
+def stream(table_mappings: Iterable[TableMapping], snapshot: Snapshot) -> None:
+    raise NotImplementedError
 
 
 def setup_logging() -> None:
@@ -139,9 +157,10 @@ def setup_logging() -> None:
     )
 
 
-def test_bootstrap() -> None:
+def test() -> None:
     setup_logging()
-    bootstrap([
+
+    table_mappings = [
         TableMapping(
             Source(
                 Table('pgbench_branches', [Column('bid')], [Column('bbalance')]),
@@ -169,4 +188,8 @@ def test_bootstrap() -> None:
                 Column('mtime'),
             ),
         ),
-    ])
+    ]
+
+    snapshot = bootstrap(table_mappings)
+
+    stream(table_mappings, snapshot)
