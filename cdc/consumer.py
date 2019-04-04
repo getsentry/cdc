@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from psycopg2 import sql
-from typing import Any, BinaryIO, Iterable, Iterator, Generator, MutableMapping, MutableSequence, NewType, Sequence, Tuple, Union
+from typing import Any, BinaryIO, Iterable, Iterator, Generator, MutableMapping, MutableSequence, NewType, Sequence, Tuple, TypeVar, Union
 from urllib.parse import urljoin, urlencode
 
 from cdc.logging import LoggerAdapter
@@ -266,36 +266,77 @@ def consumer(table_mappings: Iterable[TableMapping]) -> Iterator[Change]:
             yield change
 
 
+T = TypeVar('T')
+
+
+class PeekableIterator(Iterator[T]):
+    def __init__(self, iterator: Iterator[T]):
+        self.__iterator = iterator
+        self.__next: Union[T, StopIteration] = self.__get_next_value()
+
+    def __get_next_value(self) -> Union[T, StopIteration]:
+        try:
+            return next(self.__iterator)
+        except StopIteration as e:
+            return e
+
+    def __next__(self) -> T:
+        if isinstance(self.__next, StopIteration):
+            raise StopIteration
+        else:
+            value = self.__next
+            self.__next = self.__get_next_value()
+            return value
+
+    def peek(self) -> T:
+        if isinstance(self.__next, StopIteration):
+            raise StopIteration
+        else:
+            return self.__next
+
+
+def consume_changes(changes: Iterator[Change]) -> Iterator[Union[Mutation]]:
+    for change in changes:
+        if isinstance(change, (Insert, Update, Delete)):
+            yield change
+        elif isinstance(change, Commit):
+            return
+        else:
+            raise Exception
+
+
+def transactions(changes: Iterator[Change]) -> Iterator[Tuple[Transaction, Iterator[Mutation]]]:
+    while True:
+        change = next(changes)
+        assert isinstance(change, Begin)
+
+        transaction = change.transaction
+        yield transaction, consume_changes(changes)
+
+
 writer_host = "localhost"
 writer_database = "pgbench"
 
-def writer(changes: Iterator[Change], batch: int=1000) -> None:
+def writer(transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch: int=1000) -> None:
     client = Client(writer_host, database=writer_database)
 
     inserts: MutableMapping[Table, MutableSequence[Sequence[Any]]] = defaultdict(list)
     deletes: MutableMapping[Table, MutableSequence[Sequence[Any]]] = defaultdict(list)
 
-    pending = 0
-
-    for change in changes:
-        if not isinstance(change, (Insert, Update, Delete)):
-            logger.trace('Discarding non-mutation message: %r', change)
-            continue
-
-        if isinstance(change, Insert):
-            inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
-        elif isinstance(change, Update):
-            inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
-            if change.old_identity_values != change.new_identity_values:
+    for i, (transaction, changes) in enumerate(transactions, 1):
+        for change in changes:
+            if isinstance(change, Insert):
+                inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
+            elif isinstance(change, Update):
+                inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
+                if change.old_identity_values != change.new_identity_values:
+                    deletes[change.table].append(change.old_identity_values)
+            elif isinstance(change, Delete):
                 deletes[change.table].append(change.old_identity_values)
-        elif isinstance(change, Delete):
-            deletes[change.table].append(change.old_identity_values)
-        else:
-            raise Exception
+            else:
+                raise Exception
 
-        pending += 1
-
-        if pending > batch:
+        if i % batch == 0:
             for table in list(inserts.keys()):
                 client.execute(
                     "INSERT INTO {table.name} ({columns}) VALUES".format(
@@ -312,7 +353,7 @@ def writer(changes: Iterator[Change], batch: int=1000) -> None:
 
 def stream(table_mappings: Iterable[TableMapping], snapshot: Snapshot) -> None:
     # TODO: Snapshot filtering
-    writer(consumer(table_mappings))
+    writer(transactions(consumer(table_mappings)))
 
 
 def setup_logging() -> None:
