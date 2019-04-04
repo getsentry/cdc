@@ -1,14 +1,17 @@
 import itertools
+import json
 import logging
 import psycopg2
 import requests
 import tempfile
 from concurrent.futures import as_completed
 from concurrent.futures.process import ProcessPoolExecutor
+from confluent_kafka import Consumer as KakfaConsumer
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from psycopg2 import sql
-from typing import BinaryIO, Iterable, Iterator, Generator, NewType, Sequence, Tuple
+from typing import Any, BinaryIO, Iterable, Iterator, Generator, NewType, Sequence, Tuple, Union
 from urllib.parse import urljoin, urlencode
 
 from cdc.logging import LoggerAdapter
@@ -146,8 +149,104 @@ def bootstrap(table_mappings: Iterable[TableMapping]) -> Snapshot:
     return snapshot
 
 
+@dataclass
+class Begin:
+    xid: int
+    timestamp: datetime
+
+
+@dataclass
+class Insert:
+    table: str
+    new_identity_values: Sequence[Any]
+    new_data_values: Sequence[Any]
+
+
+@dataclass
+class Update:
+    table: str
+    old_identity_values: Sequence[Any]
+    new_identity_values: Sequence[Any]
+    new_data_values: Sequence[Any]
+
+
+@dataclass
+class Delete:
+    table: str
+    old_identity_values: Sequence[Any]
+
+
+@dataclass
+class Commit:
+    pass
+
+
+def decode(table_mappings: Iterable[TableMapping], message: str) -> Iterator[Union[Begin, Insert, Update, Delete, Commit]]:
+    tables = {table_mapping.source.table.name: table_mapping for table_mapping in table_mappings}
+
+    data = json.loads(message)
+
+    yield Begin(
+        timestamp=datetime.strptime(data["timestamp"].split("+")[0], "%Y-%m-%d %H:%M:%S.%f"),  # XXX
+        xid=int(data['xid']),
+    )
+
+    for change in data["change"]:
+        kind = change["kind"]
+        table = change["table"]
+        table_mapping = tables.get(table)
+        if table_mapping is None:
+            logger.trace('Discarded change from unmapped table: %r', table)
+            continue
+
+        source_table = table_mapping.source.table
+        if kind == "insert":
+            yield Insert(
+                table=change["table"],
+                new_identity_values=[change["columnvalues"][i] for i in (change["columnnames"].index(column.name) for column in source_table.identity_columns)],
+                new_data_values=[change["columnvalues"][i] for i in (change["columnnames"].index(column.name) for column in source_table.data_columns)],
+            )
+        elif kind == "update":
+            yield Update(
+                table=change["table"],
+                old_identity_values=[change["oldkeys"]["keyvalues"][i] for i in (change["oldkeys"]["keynames"].index(column.name) for column in source_table.identity_columns)],
+                new_identity_values=[change["columnvalues"][i] for i in (change["columnnames"].index(column.name) for column in source_table.identity_columns)],
+                new_data_values=[change["columnvalues"][i] for i in (change["columnnames"].index(column.name) for column in source_table.data_columns)],
+            )
+        elif kind == "delete":
+            yield Delete(
+                table=change["table"],
+                old_identity_values=[change["oldkeys"]["keyvalues"][i] for i in (change["oldkeys"]["keynames"].index(column.name) for column in source_table.identity_columns)],
+            )
+        else:
+            raise Exception
+
+    yield Commit()
+
+
+import uuid
+
+stream_consumer_topic = 'topic'
+stream_consumer_options = {
+    'bootstrap.servers': 'localhost:9092',
+    'group.id': uuid.uuid1().hex,
+    'auto.offset.reset': 'latest',
+    'enable.partition.eof': 'false',
+}
+
 def stream(table_mappings: Iterable[TableMapping], snapshot: Snapshot) -> None:
-    raise NotImplementedError
+    logger.debug('Starting to consume from stream...')
+
+    consumer = KakfaConsumer(stream_consumer_options)
+    consumer.subscribe([stream_consumer_topic])
+
+    while True:
+        message = consumer.poll()
+        if message is None:
+            continue
+
+        for change in decode(table_mappings, message.value()):
+            print(change)
 
 
 def setup_logging() -> None:
@@ -172,19 +271,19 @@ def test() -> None:
         ),
         TableMapping(
             Source(
-                Table('pgbench_accounts', [Column('bid'), Column('aid')], [Column('abalance')]),
+                Table('pgbench_accounts', [Column('aid')], [Column('bid'), Column('abalance')]),
             ),
             Destination(
-                Table('accounts', [Column('branch_id'), Column('account_id')], [Column('balance')]),
+                Table('accounts', [Column('account_id')], [Column('branch_id'), Column('balance')]),
                 Column('mtime'),
             ),
         ),
         TableMapping(
             Source(
-                Table('pgbench_tellers', [Column('bid'), Column('tid')], [Column('tbalance')]),
+                Table('pgbench_tellers', [Column('tid')], [Column('bid'), Column('tbalance')]),
             ),
             Destination(
-                Table('tellers', [Column('branch_id'), Column('teller_id')], [Column('balance')]),
+                Table('tellers', [Column('teller_id')], [Column('branch_id'), Column('balance')]),
                 Column('mtime'),
             ),
         ),

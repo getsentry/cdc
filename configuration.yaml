@@ -17,13 +17,14 @@ source:
     backend:
         type: postgres_logical
         options:
-            dsn: 'postgres://postgres@localhost:5432/postgres'
+            dsn: 'postgres://postgres@localhost:5432/pgbench'
             slot:
                 name: 'example'
                 plugin: 'wal2json'
+                create: true
                 options:
                     include-xids: 'true'
-                    write-in-chunks: 'true'
+                    include-timestamp: 'true'
 
 publisher:
     backend:
