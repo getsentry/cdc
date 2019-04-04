@@ -3,11 +3,12 @@ import logging
 import psycopg2
 import requests
 import tempfile
-from concurrent.futures import ALL_COMPLETED, wait
+from concurrent.futures import as_completed
 from concurrent.futures.process import ProcessPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from psycopg2 import sql
-from typing import BinaryIO, Iterable, Iterator, Sequence
+from typing import BinaryIO, Iterable, Iterator, Generator, NewType, Sequence
 from urllib.parse import urljoin, urlencode
 
 from cdc.logging import LoggerAdapter
@@ -58,10 +59,28 @@ class TableMapping:  # not the best name
 
 dump_dsn = 'postgres://postgres@localhost:5432/pgbench'
 
-def dump(source: Source) -> BinaryIO:
-    logger.debug('Dumping data from %r...', source)
+Snapshot = NewType('Snapshot', str)
+
+@contextmanager
+def export_snapshot() -> Generator[Snapshot, None, None]:
+    connection = psycopg2.connect(dump_dsn)
+    connection.autocommit = False
+
+    with connection.cursor() as cursor:
+        cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY, DEFERRABLE")
+        cursor.execute("SELECT pg_export_snapshot()")
+        yield Snapshot(cursor.fetchone()[0])
+
+    connection.close()
+
+
+def dump(snapshot: Snapshot, source: Source) -> BinaryIO:
+    logger.debug('Dumping data from %r using snapshot: %s...', source, snapshot)
 
     connection = psycopg2.connect(dump_dsn)
+    with connection.cursor() as cursor:
+        cursor.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY")
+        cursor.execute("SET TRANSACTION SNAPSHOT %s", [snapshot])
 
     output = tempfile.NamedTemporaryFile(
         mode="wb",
@@ -102,15 +121,15 @@ def load(destination: Destination, data: BinaryIO) -> None:
     response.close()
 
 
-def copy(table_mapping: TableMapping) -> None:
-    load(table_mapping.destination, dump(table_mapping.source))
+def copy(snapshot: Snapshot, table_mapping: TableMapping) -> None:
+    load(table_mapping.destination, dump(snapshot, table_mapping.source))
 
 
 def bootstrap(table_mappings: Iterable[TableMapping]) -> None:
-    with ProcessPoolExecutor() as pool:
-        futures = [pool.submit(copy, table_mapping) for table_mapping in table_mappings]
-        # TODO: Do something useful with this result.
-        wait(futures, return_when=ALL_COMPLETED)
+    with ProcessPoolExecutor() as pool, export_snapshot() as snapshot:
+        futures = [pool.submit(copy, snapshot, table_mapping) for table_mapping in table_mappings]
+        for future in as_completed(futures):
+            future.result()
 
 
 def setup_logging() -> None:
