@@ -1,3 +1,5 @@
+import os
+import functools
 import itertools
 import json
 import logging
@@ -6,7 +8,7 @@ import requests
 import tempfile
 from clickhouse_driver import Client
 from collections import defaultdict
-from concurrent.futures import as_completed
+from concurrent.futures import Future, as_completed
 from concurrent.futures.process import ProcessPoolExecutor
 from confluent_kafka import Consumer as KakfaConsumer
 from contextlib import contextmanager
@@ -16,6 +18,7 @@ from psycopg2 import sql
 from typing import Any, BinaryIO, Iterable, Iterator, Generator, MutableMapping, MutableSequence, NewType, Sequence, Tuple, Union
 from urllib.parse import urljoin, urlencode
 
+from cdc.concurrent import execute
 from cdc.logging import LoggerAdapter
 
 
@@ -258,114 +261,91 @@ stream_consumer_options = {
     'enable.partition.eof': 'false',
 }
 
+
+def write(table: Table, f: BinaryIO):
+    requests.post(
+        urljoin(
+            load_url,
+            '?' + urlencode({
+                'query': 'INSERT INTO {table.name} FORMAT JSONEachRow'.format(table=table),
+                'database': load_database,
+            }),
+        ),
+        data=f,
+    ).raise_for_status()
+
+
+@dataclass(frozen=True)
+class Writer:
+    file: BinaryIO
+    future: Future
+
+
+def start_writer(table: Table) -> Writer:
+    r, w = os.pipe()
+    r, w = os.fdopen(r, 'rb', 0), os.fdopen(w, 'wb', 0)
+    return Writer(
+        w,
+        execute(
+            functools.partial(write, table, r),
+            daemon=False,
+        ),
+    )
+
+
+def serialize(change):
+    if isinstance(change, Insert):
+        return json.dumps(dict(zip(
+            itertools.chain(
+                (c.name for c in change.table.identity_columns),
+                (c.name for c in change.table.data_columns),
+            ),
+            itertools.chain(change.new_identity_values, change.new_data_values),
+        ))).encode('utf-8')
+    elif isinstance(change, Update):
+        return json.dumps(dict(zip(
+            itertools.chain(
+                (c.name for c in change.table.identity_columns),
+                (c.name for c in change.table.data_columns),
+            ),
+            itertools.chain(change.new_identity_values, change.new_data_values),
+        ))).encode('utf-8')
+
+    raise Exception
+
+
 def consumer(table_mappings: Iterable[TableMapping]) -> Iterator[Change]:
     logger.debug('Starting to consume from stream...')
 
     consumer = KakfaConsumer(stream_consumer_options)
     consumer.subscribe([stream_consumer_topic])
 
-    while True:
-        message = consumer.poll()
-        if message is None:
-            continue
+    writers: MutableMapping[Table, Writer] = {}
 
-        for change in decode(table_mappings, message.value()):
-            yield change
+    try:
+        while True:
+            message = consumer.poll()  # TODO: timeout
+            if message is None:
+                continue
 
+            for change in decode(table_mappings, message.value()):
+                if not isinstance(change, (Insert, Update, Delete)):
+                    continue  # we only care about mutations right now
 
-def consume_changes(changes: Iterator[Change]) -> Iterator[Union[Mutation]]:
-    for change in changes:
-        if isinstance(change, (Insert, Update, Delete)):
-            yield change
-        elif isinstance(change, Commit):
-            return
-        else:
-            raise Exception
+                writer = writers.get(change.table)
+                if writer is None:
+                    writer = writers[change.table] = start_writer(change.table)
 
+                logger.trace('Writing %r', change)
+                writer.file.write(serialize(change))
+    except KeyboardInterrupt:
+        print('exc')
+        for table, writer in writers.items():
+            writer.file.close()
 
-def transactions(changes: Iterator[Change]) -> Iterator[Tuple[Transaction, Iterator[Mutation]]]:
-    while True:
-        change = next(changes)
-        assert isinstance(change, Begin)
-
-        transaction = change.transaction
-        yield transaction, consume_changes(changes)
-
-
-def visibility_filter(snapshot: Snapshot, transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]]) -> Iterator[Tuple[Transaction, Iterator[Mutation]]]:
-    for transaction, changes in transactions:
-        if snapshot.contains(transaction.xid):
-            logger.trace('Discarding %r, since it was contained within %r.', transaction, snapshot)
-            exhaust(changes)  # disard
-            continue
-        else:
-            yield transaction, changes
-
-
-def exhaust(iterator: Iterator) -> int:
-    i = 0
-    for i, _ in enumerate(iterator, 1):
-        pass
-    return i
-
-
-writer_host = "localhost"
-writer_database = "pgbench"
-
-def writer(transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch: int=1000) -> None:
-    client = Client(writer_host, database=writer_database)
-
-    inserts: MutableMapping[Table, MutableSequence[Sequence[Any]]] = defaultdict(list)
-    deletes: MutableMapping[Table, MutableSequence[Sequence[Any]]] = defaultdict(list)
-
-    for i, (transaction, changes) in enumerate(transactions, 1):
-        logger.trace('Processing changes from %r...', transaction)
-        i = 0
-        for i, change in enumerate(changes, 1):
-            # TODO: Write version (time) and deletion flag into rows
-            if isinstance(change, Insert):
-                inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
-            elif isinstance(change, Update):
-                inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
-                if change.old_identity_values != change.new_identity_values:
-                    deletes[change.table].append(change.old_identity_values)
-            elif isinstance(change, Delete):
-                deletes[change.table].append(change.old_identity_values)
-            else:
-                raise Exception
-        logger.trace('Processed %s changes from %r.', i, transaction)
-
-        # TODO: Implement better batching (probably max # of transactions, max # of seconds)
-        # This also needs to handle a max # of records because some
-        # transactions could be very large and need to be flushed in multiple
-        # chunks
-
-        if i % batch == 0:
-            for table in list(inserts.keys()):
-                client.execute(
-                    "INSERT INTO {table.name} ({columns}) VALUES".format(
-                        table=table,
-                        columns=', '.join(column.name for column in table.columns),
-                    ),
-                    inserts.pop(table),
-                )
-
-            for table in list(deletes.keys()):
-                # TODO
-                deletes.pop(table)
-
-        # TODO: Mark in-flight transactions as completed after they have been flushed
-
-
-def stream(table_mappings: Iterable[TableMapping], snapshot: Snapshot) -> None:
-    writer(
-        visibility_filter(
-            snapshot,
-            transactions(
-                consumer(table_mappings),
-            )
-        ),
-    )
+        while writers:
+            table, writer = writers.popitem()
+            logger.trace('%r, %r', table, writer.future.result())
 
 
 def setup_logging() -> None:
@@ -408,6 +388,6 @@ def test() -> None:
         ),
     ]
 
-    snapshot = bootstrap(table_mappings)
+    # snapshot = bootstrap(table_mappings)
 
-    stream(table_mappings, snapshot)
+    consumer(table_mappings)
