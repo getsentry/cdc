@@ -351,6 +351,7 @@ def writer(transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch
         logger.trace('Processing changes from %r...', transaction)
         i = 0
         for i, change in enumerate(changes, 1):
+            # TODO: Write version (time) and deletion flag into rows
             if isinstance(change, Insert):
                 inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
             elif isinstance(change, Update):
@@ -362,6 +363,11 @@ def writer(transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch
             else:
                 raise Exception
         logger.trace('Processed %s changes from %r.', i, transaction)
+
+        # TODO: Implement better batching (probably max # of transactions, max # of seconds)
+        # This also needs to handle a max # of records because some
+        # transactions could be very large and need to be flushed in multiple
+        # chunks
 
         if i % batch == 0:
             for table in list(inserts.keys()):
@@ -376,6 +382,8 @@ def writer(transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch
             for table in list(deletes.keys()):
                 # TODO
                 deletes.pop(table)
+
+        # TODO: Mark in-flight transactions as completed after they have been flushed
 
 
 def stream(table_mappings: Iterable[TableMapping], snapshot: Snapshot) -> None:
