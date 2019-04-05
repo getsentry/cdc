@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from psycopg2 import sql
-from typing import Any, BinaryIO, Iterable, Iterator, Generator, MutableMapping, MutableSequence, NewType, Sequence, Tuple, TypeVar, Union
+from typing import Any, BinaryIO, Iterable, Iterator, Generator, MutableMapping, MutableSequence, NewType, Sequence, Tuple, Union
 from urllib.parse import urljoin, urlencode
 
 from cdc.logging import LoggerAdapter
@@ -271,35 +271,6 @@ def consumer(table_mappings: Iterable[TableMapping]) -> Iterator[Change]:
 
         for change in decode(table_mappings, message.value()):
             yield change
-
-
-T = TypeVar('T')
-
-
-class PeekableIterator(Iterator[T]):
-    def __init__(self, iterator: Iterator[T]):
-        self.__iterator = iterator
-        self.__next: Union[T, StopIteration] = self.__get_next_value()
-
-    def __get_next_value(self) -> Union[T, StopIteration]:
-        try:
-            return next(self.__iterator)
-        except StopIteration as e:
-            return e
-
-    def __next__(self) -> T:
-        if isinstance(self.__next, StopIteration):
-            raise StopIteration
-        else:
-            value = self.__next
-            self.__next = self.__get_next_value()
-            return value
-
-    def peek(self) -> T:
-        if isinstance(self.__next, StopIteration):
-            raise StopIteration
-        else:
-            return self.__next
 
 
 def consume_changes(changes: Iterator[Change]) -> Iterator[Union[Mutation]]:
