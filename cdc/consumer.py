@@ -76,7 +76,7 @@ class Snapshot:
     xmax: int
     xip_list: Sequence[int]
 
-    def contains(self, xid: int):
+    def contains(self, xid: int) -> bool:
         if xid < self.xmin:
             return True
         elif xid >= self.xmax:
@@ -321,6 +321,16 @@ def transactions(changes: Iterator[Change]) -> Iterator[Tuple[Transaction, Itera
         yield transaction, consume_changes(changes)
 
 
+def visibility_filter(snapshot: Snapshot, transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]]) -> Iterator[Tuple[Transaction, Iterator[Mutation]]]:
+    for transaction, changes in transactions:
+        if snapshot.contains(transaction.xid):
+            logger.trace('Discarding %r, since it was contained within %r.', transaction, snapshot)
+            exhaust(changes)  # disard
+            continue
+        else:
+            yield transaction, changes
+
+
 def exhaust(iterator: Iterator) -> int:
     i = 0
     for i, _ in enumerate(iterator, 1):
@@ -331,20 +341,16 @@ def exhaust(iterator: Iterator) -> int:
 writer_host = "localhost"
 writer_database = "pgbench"
 
-def writer(snapshot: Snapshot, transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch: int=1000) -> None:
+def writer(transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch: int=1000) -> None:
     client = Client(writer_host, database=writer_database)
 
     inserts: MutableMapping[Table, MutableSequence[Sequence[Any]]] = defaultdict(list)
     deletes: MutableMapping[Table, MutableSequence[Sequence[Any]]] = defaultdict(list)
 
     for i, (transaction, changes) in enumerate(transactions, 1):
-        if snapshot.contains(transaction.xid):
-            logger.trace('Discarding %r, since it was contained within %r.', transaction, snapshot)
-            exhaust(changes)  # disard
-            continue
-
         logger.trace('Processing changes from %r...', transaction)
-        for change in changes:
+        i = 0
+        for i, change in enumerate(changes, 1):
             if isinstance(change, Insert):
                 inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
             elif isinstance(change, Update):
@@ -355,6 +361,7 @@ def writer(snapshot: Snapshot, transactions: Iterator[Tuple[Transaction, Iterato
                 deletes[change.table].append(change.old_identity_values)
             else:
                 raise Exception
+        logger.trace('Processed %s changes from %r.', i, transaction)
 
         if i % batch == 0:
             for table in list(inserts.keys()):
@@ -372,7 +379,14 @@ def writer(snapshot: Snapshot, transactions: Iterator[Tuple[Transaction, Iterato
 
 
 def stream(table_mappings: Iterable[TableMapping], snapshot: Snapshot) -> None:
-    writer(snapshot, transactions(consumer(table_mappings)))
+    writer(
+        visibility_filter(
+            snapshot,
+            transactions(
+                consumer(table_mappings),
+            )
+        ),
+    )
 
 
 def setup_logging() -> None:
