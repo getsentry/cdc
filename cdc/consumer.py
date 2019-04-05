@@ -76,6 +76,13 @@ class Snapshot:
     xmax: int
     xip_list: Sequence[int]
 
+    def contains(self, xid: int):
+        if xid < self.xmin:
+            return True
+        elif xid >= self.xmax:
+            return False
+        return xid not in self.xip_list
+
 
 @contextmanager
 def export_snapshot() -> Generator[Tuple[SnapshotIdentifier, Snapshot], None, None]:
@@ -247,7 +254,7 @@ stream_consumer_topic = 'topic'
 stream_consumer_options = {
     'bootstrap.servers': 'localhost:9092',
     'group.id': uuid.uuid1().hex,
-    'auto.offset.reset': 'latest',
+    'auto.offset.reset': 'earliest',
     'enable.partition.eof': 'false',
 }
 
@@ -314,16 +321,29 @@ def transactions(changes: Iterator[Change]) -> Iterator[Tuple[Transaction, Itera
         yield transaction, consume_changes(changes)
 
 
+def exhaust(iterator: Iterator) -> int:
+    i = 0
+    for i, _ in enumerate(iterator, 1):
+        pass
+    return i
+
+
 writer_host = "localhost"
 writer_database = "pgbench"
 
-def writer(transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch: int=1000) -> None:
+def writer(snapshot: Snapshot, transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch: int=1000) -> None:
     client = Client(writer_host, database=writer_database)
 
     inserts: MutableMapping[Table, MutableSequence[Sequence[Any]]] = defaultdict(list)
     deletes: MutableMapping[Table, MutableSequence[Sequence[Any]]] = defaultdict(list)
 
     for i, (transaction, changes) in enumerate(transactions, 1):
+        if snapshot.contains(transaction.xid):
+            logger.trace('Discarding %r, since it was contained within %r.', transaction, snapshot)
+            exhaust(changes)  # disard
+            continue
+
+        logger.trace('Processing changes from %r...', transaction)
         for change in changes:
             if isinstance(change, Insert):
                 inserts[change.table].append([*change.new_identity_values, *change.new_data_values])
@@ -352,8 +372,7 @@ def writer(transactions: Iterator[Tuple[Transaction, Iterator[Mutation]]], batch
 
 
 def stream(table_mappings: Iterable[TableMapping], snapshot: Snapshot) -> None:
-    # TODO: Snapshot filtering
-    writer(transactions(consumer(table_mappings)))
+    writer(snapshot, transactions(consumer(table_mappings)))
 
 
 def setup_logging() -> None:
