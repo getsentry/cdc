@@ -10,11 +10,11 @@ from psycopg2.extras import (  # type: ignore
 from select import select
 from typing import Mapping, Union, Tuple
 
-from cdc.logging import LoggerAdapter
-from cdc.registry import Configuration
 from cdc.sources.backends import SourceBackend
 from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
+from cdc.utils.logging import LoggerAdapter
+from cdc.utils.registry import Configuration
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))

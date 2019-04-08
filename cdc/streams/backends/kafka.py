@@ -4,10 +4,10 @@ import logging
 from confluent_kafka import KafkaError, Producer  # type: ignore
 from typing import Any, Callable, Mapping, Union
 
-from cdc.logging import LoggerAdapter
-from cdc.registry import Configuration
 from cdc.sources.types import Payload
 from cdc.streams.backends import ProducerBackend
+from cdc.utils.logging import LoggerAdapter
+from cdc.utils.registry import Configuration
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))

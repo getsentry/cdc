@@ -2,9 +2,9 @@ import functools
 import logging
 from datetime import datetime
 
-from cdc.logging import LoggerAdapter
 from cdc.sources import Source
 from cdc.streams import Producer as StreamProducer
+from cdc.utils.logging import LoggerAdapter
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))

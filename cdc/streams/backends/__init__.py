@@ -2,8 +2,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Callable
 
-from cdc.logging import LoggerAdapter
 from cdc.sources.types import Payload
+from cdc.utils.logging import LoggerAdapter
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
@@ -30,7 +30,7 @@ class ProducerBackend(ABC):
         raise NotImplementedError
 
 
-from cdc.registry import Registry
+from cdc.utils.registry import Registry
 from cdc.streams.backends.kafka import kafka_producer_backend_factory
 
 producer_registry: Registry[ProducerBackend] = Registry(

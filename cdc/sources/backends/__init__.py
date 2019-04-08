@@ -3,10 +3,10 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Tuple, Union
 
-from cdc.logging import LoggerAdapter
-from cdc.registry import Registry
 from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
+from cdc.utils.logging import LoggerAdapter
+from cdc.utils.registry import Registry
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
