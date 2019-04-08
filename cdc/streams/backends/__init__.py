@@ -9,7 +9,7 @@ from cdc.sources.types import Payload
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 
-class PublisherBackend(ABC):
+class ProducerBackend(ABC):
     @abstractmethod
     def __len__(self) -> int:
         raise NotImplementedError
@@ -31,8 +31,8 @@ class PublisherBackend(ABC):
 
 
 from cdc.registry import Registry
-from cdc.streams.backends.kafka import kafka_publisher_backend_factory
+from cdc.streams.backends.kafka import kafka_producer_backend_factory
 
-publisher_registry: Registry[PublisherBackend] = Registry(
-    {"kafka": kafka_publisher_backend_factory}
+producer_registry: Registry[ProducerBackend] = Registry(
+    {"kafka": kafka_producer_backend_factory}
 )

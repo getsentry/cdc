@@ -3,22 +3,21 @@ import logging
 from datetime import datetime
 
 from cdc.logging import LoggerAdapter
-from cdc.registry import Configuration
-from cdc.sources import Source, source_factory
-from cdc.streams import Publisher, publisher_factory
+from cdc.sources import Source
+from cdc.streams import Producer as StreamProducer
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 
-class Application(object):
-    def __init__(self, source: Source, publisher: Publisher):
+class Producer(object):
+    def __init__(self, source: Source, producer: StreamProducer):
         self.source = source
-        self.publisher = publisher
+        self.producer = producer
 
     def run(self) -> None:
         self.source.validate()
-        self.publisher.validate()
+        self.producer.validate()
 
         iterations_without_source_message = 0
         try:
@@ -55,9 +54,9 @@ class Application(object):
                 # try to publish. (If this fails, we'll try again on the next
                 # iteration.)
                 if message is not None:
-                    logger.trace("Trying to write message to %r...", self.publisher)
+                    logger.trace("Trying to write message to %r...", self.producer)
                     try:
-                        self.publisher.write(
+                        self.producer.write(
                             message.payload,
                             callback=functools.partial(
                                 self.source.set_flush_position,
@@ -69,12 +68,12 @@ class Application(object):
                         logger.trace(
                             "Failed to write %r to %r due to %r, will retry.",
                             message,
-                            self.publisher,
+                            self.producer,
                             e,
                         )
                     else:
                         logger.trace(
-                            "Succesfully wrote %r to %r.", message, self.publisher
+                            "Succesfully wrote %r to %r.", message, self.producer
                         )
                         self.source.set_write_position(message.id, message.position)
                         message = None
@@ -82,7 +81,7 @@ class Application(object):
                 # Invoke any queued delivery callbacks here, since these may
                 # change the deadline of any scheduled tasks.
                 logger.trace("Invoking queued delivery callbacks...")
-                self.publisher.poll(0)
+                self.producer.poll(0)
 
                 # If there are any scheduled tasks that need to be performed on
                 # the source (updating our positions, or sending keep-alive
@@ -101,7 +100,7 @@ class Application(object):
                 # waiting. The first (and more obvious) one is if we still have
                 # a ``message`` record, since that signals that we failed to
                 # publish it during this current loop iteration. In that case,
-                # we need to wait for the publisher to have the capacity to
+                # we need to wait for the producer to have the capacity to
                 # accept a new message. The second is a little trickier -- to
                 # prevent a unnecessary (and potentially expensive) ``poll`` on
                 # the source, we only block on the source if the last two
@@ -128,23 +127,16 @@ class Application(object):
                     else:
                         logger.trace(
                             "Waiting for %r for up to %0.4f seconds next task: %r...",
-                            self.publisher,
+                            self.producer,
                             timeout,
                             task,
                         )
-                        self.publisher.poll(timeout)
+                        self.producer.poll(timeout)
         except KeyboardInterrupt as e:
             logger.debug("Caught %r, shutting down...", e)
             logger.debug(
                 "Waiting for %s messages to flush and committing positions before exiting...",
-                len(self.publisher),
+                len(self.producer),
             )
-            self.publisher.flush(60.0)
+            self.producer.flush(60.0)
             self.source.commit_positions()
-
-
-def application_factory(configuration: Configuration) -> Application:
-    return Application(
-        source=source_factory(configuration["source"]),
-        publisher=publisher_factory(configuration["publisher"]),
-    )

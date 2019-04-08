@@ -1,3 +1,5 @@
+version: 1
+
 logging:
     version: 1
     disable_existing_loggers: false
@@ -25,7 +27,7 @@ source:
                     include-xids: 'true'
                     write-in-chunks: 'true'
 
-publisher:
+producer:
     backend:
         type: kafka
         options:
