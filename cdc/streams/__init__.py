@@ -1,4 +1,4 @@
-import jsonschema
+import jsonschema  # type: ignore
 from typing import Callable
 
 from cdc.registry import Configuration

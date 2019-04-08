@@ -1,7 +1,7 @@
 import functools
-import jsonschema
+import jsonschema  # type: ignore
 import logging
-from confluent_kafka import KafkaError, Producer
+from confluent_kafka import KafkaError, Producer  # type: ignore
 from typing import Any, Callable, Mapping, Union
 
 from cdc.logging import LoggerAdapter

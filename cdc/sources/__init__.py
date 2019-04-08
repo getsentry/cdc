@@ -1,5 +1,5 @@
 import itertools
-import jsonschema
+import jsonschema  # type: ignore
 import logging
 from datetime import datetime, timedelta
 from typing import Union

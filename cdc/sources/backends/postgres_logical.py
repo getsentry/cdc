@@ -1,9 +1,12 @@
-import jsonschema
+import jsonschema  # type: ignore
 import logging
-import psycopg2
+import psycopg2  # type: ignore
 from datetime import datetime, timedelta
-from psycopg2.extensions import cursor
-from psycopg2.extras import LogicalReplicationConnection, REPLICATION_LOGICAL
+from psycopg2.extensions import cursor  # type: ignore
+from psycopg2.extras import (  # type: ignore
+    LogicalReplicationConnection,
+    REPLICATION_LOGICAL,
+)
 from select import select
 from typing import Mapping, Union, Tuple
 

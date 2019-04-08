@@ -1,9 +1,6 @@
 check:
 	python -m pyflakes cdc
-	python -m mypy -p cdc \
-		--check-untyped-defs \
-		--disallow-incomplete-defs \
-		--disallow-untyped-defs
+	python -m mypy -p cdc
 .PHONY: check
 
 format:
