@@ -21,7 +21,10 @@ class Producer(object):
 
     def __handle_interrupt(self, num, frame):
         logger.debug("Caught %r, shutting down...", num)
-        logger.debug("Waiting for %s messages to flush and committing positions before exiting...", len(self.producer))
+        logger.debug(
+            "Waiting for %s messages to flush and committing positions before exiting...",
+            len(self.producer),
+        )
         self.__shutting_down = True
 
     def run(self) -> None:
@@ -66,9 +69,7 @@ class Producer(object):
                     self.producer.write(
                         message.payload,
                         callback=functools.partial(
-                            self.source.set_flush_position,
-                            message.id,
-                            message.position,
+                            self.source.set_flush_position, message.id, message.position
                         ),
                     )
                 except BufferError as e:  # TODO: too coupled to kafka impl
@@ -79,9 +80,7 @@ class Producer(object):
                         e,
                     )
                 else:
-                    logger.trace(
-                        "Succesfully wrote %r to %r.", message, self.producer
-                    )
+                    logger.trace("Succesfully wrote %r to %r.", message, self.producer)
                     self.source.set_write_position(message.id, message.position)
                     message = None
 
@@ -126,7 +125,11 @@ class Producer(object):
             now = datetime.now()
             timeout = task.get_timeout(now)
             if timeout > 0:
-                if message is not None or self.__shutting_down and len(self.producer) > 0:
+                if (
+                    message is not None
+                    or self.__shutting_down
+                    and len(self.producer) > 0
+                ):
                     logger.trace(
                         "Waiting for %r for up to %0.4f seconds before next task: %r...",
                         self.producer,
