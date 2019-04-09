@@ -1,5 +1,6 @@
 import functools
 import logging
+import signal
 from datetime import datetime
 
 from cdc.sources import Source
@@ -15,128 +16,131 @@ class Producer(object):
         self.source = source
         self.producer = producer
 
+        self.__shutting_down = False
+        signal.signal(signal.SIGINT, self.__handle_interrupt)
+
+    def __handle_interrupt(self, num, frame):
+        logger.debug("Caught %r, shutting down...", num)
+        logger.debug("Waiting for %s messages to flush and committing positions before exiting...", len(self.producer))
+        self.__shutting_down = True
+
     def run(self) -> None:
         self.source.validate()
         self.producer.validate()
 
         iterations_without_source_message = 0
-        try:
-            message = None
-            while True:
-                # In most circumstances, we won't have a message ready to be
-                # published and we'll need to fetch the next message to publish
-                # from the source. In some situations, there might already be a
-                # message from the last loop iteration that is still waiting to
-                # be sent. If that's the case, we don't need to get a new
-                # message.
-                if message is None:
-                    logger.trace("Trying to fetch message from %r...", self.source)
-                    message = self.source.fetch()
-                    if message is not None:
-                        logger.trace(
-                            "Received message (after %s attempts): %r",
-                            iterations_without_source_message,
-                            message,
-                        )
-                        iterations_without_source_message = 0
-                    else:
-                        iterations_without_source_message += 1
-                        logger.trace(
-                            "Did not receive message (%s attempts so far.)",
-                            iterations_without_source_message,
-                        )
-
-                # It's also possible that we're all caught up, and there are no
-                # new changes available to be fetched from the source right
-                # now. In that case, there is no message to be sent. Normally,
-                # we'll have a message ready to go (either from the last loop
-                # iteration, or a new one that we fetched above) that we can
-                # try to publish. (If this fails, we'll try again on the next
-                # iteration.)
+        message = None
+        while not self.__shutting_down or len(self.producer):
+            # In most circumstances, we won't have a message ready to be
+            # published and we'll need to fetch the next message to publish
+            # from the source. In some situations, there might already be a
+            # message from the last loop iteration that is still waiting to be
+            # sent. If that's the case, we don't need to get a new message. We
+            # also don't need to receive any messages if we're shutting down.
+            if message is None and not self.__shutting_down:
+                logger.trace("Trying to fetch message from %r...", self.source)
+                message = self.source.fetch()
                 if message is not None:
-                    logger.trace("Trying to write message to %r...", self.producer)
-                    try:
-                        self.producer.write(
-                            message.payload,
-                            callback=functools.partial(
-                                self.source.set_flush_position,
-                                message.id,
-                                message.position,
-                            ),
-                        )
-                    except BufferError as e:  # TODO: too coupled to kafka impl
-                        logger.trace(
-                            "Failed to write %r to %r due to %r, will retry.",
-                            message,
-                            self.producer,
-                            e,
-                        )
-                    else:
-                        logger.trace(
-                            "Succesfully wrote %r to %r.", message, self.producer
-                        )
-                        self.source.set_write_position(message.id, message.position)
-                        message = None
+                    logger.trace(
+                        "Received message (after %s attempts): %r",
+                        iterations_without_source_message,
+                        message,
+                    )
+                    iterations_without_source_message = 0
+                else:
+                    iterations_without_source_message += 1
+                    logger.trace(
+                        "Did not receive message (%s attempts so far.)",
+                        iterations_without_source_message,
+                    )
 
-                # Invoke any queued delivery callbacks here, since these may
-                # change the deadline of any scheduled tasks.
-                logger.trace("Invoking queued delivery callbacks...")
-                self.producer.poll(0)
+            # It's also possible that we're all caught up, and there are no new
+            # changes available to be fetched from the source right now. In
+            # that case, there is no message to be sent. Normally, we'll have a
+            # message ready to go (either from the last loop iteration, or a
+            # new one that we fetched above) that we can try to publish. (If
+            # this fails, we'll try again on the next iteration.)
+            if message is not None:
+                logger.trace("Trying to write message to %r...", self.producer)
+                try:
+                    self.producer.write(
+                        message.payload,
+                        callback=functools.partial(
+                            self.source.set_flush_position,
+                            message.id,
+                            message.position,
+                        ),
+                    )
+                except BufferError as e:  # TODO: too coupled to kafka impl
+                    logger.trace(
+                        "Failed to write %r to %r due to %r, will retry.",
+                        message,
+                        self.producer,
+                        e,
+                    )
+                else:
+                    logger.trace(
+                        "Succesfully wrote %r to %r.", message, self.producer
+                    )
+                    self.source.set_write_position(message.id, message.position)
+                    message = None
 
-                # If there are any scheduled tasks that need to be performed on
-                # the source (updating our positions, or sending keep-alive
-                # messages, for example), run them now.
-                now = datetime.now()
-                while True:
-                    task = self.source.get_next_scheduled_task(now)
-                    if not task or task.deadline > now:
-                        logger.trace("There are no scheduled tasks to perform.")
-                        break
+            # Invoke any queued delivery callbacks here, since these may change
+            # the deadline of any scheduled tasks.
+            logger.trace("Invoking queued delivery callbacks...")
+            self.producer.poll(0)
 
-                    logger.trace("Executing scheduled task: %r", task)
-                    task.callable()
+            # If there are any scheduled tasks that need to be performed on the
+            # source (updating our positions, or sending keep-alive messages,
+            # for example), run them now.
+            now = datetime.now()
+            task = self.source.get_next_scheduled_task(now)
+            while now >= task.deadline:
+                logger.trace("Executing scheduled task: %r", task)
+                task.callable()
+                task = self.source.get_next_scheduled_task(now)
+            else:
+                logger.trace("There are no scheduled tasks to perform.")
 
-                # There are two situations where we need to block to avoid busy
-                # waiting. The first (and more obvious) one is if we still have
-                # a ``message`` record, since that signals that we failed to
-                # publish it during this current loop iteration. In that case,
-                # we need to wait for the producer to have the capacity to
-                # accept a new message. The second is a little trickier -- to
-                # prevent a unnecessary (and potentially expensive) ``poll`` on
-                # the source, we only block on the source if the last two
-                # consecutive calls to ``source.fetch`` have both not returned
-                # a new message. If we need to block for either scenario, we
-                # also need to keep in mind that there are scheduled tasks that
-                # we have promised to execute within a reasonable timeframe. We
-                # can only wait as long as the next deadline.
-                if message is not None or iterations_without_source_message >= 2:
-                    now = datetime.now()
-                    task = self.source.get_next_scheduled_task(now)
-                    timeout = (task.deadline - now).total_seconds()
-                    if not timeout > 0:
-                        continue  # avoid blocking if we're past deadline
+            # There are three situations where we need to block to avoid busy
+            # waiting until the next scheduled task is ready to be performed.
+            # First, if there is still a ``message`` record waiting to be sent,
+            # this indicates that we failed to publish it during this loop
+            # iteration. In that case, we need to wait for the producer to have
+            # the capacity to accept a new message. (This can occur whether or
+            # not we are trying to shut down.) Second, if we are shutting down
+            # and the producer still has messages in-flight, we need to block
+            # until there are delivery callbacks ready to be fired by the
+            # producer. (When a delivery callback is fired, the message
+            # associated with that callback has been removed from the queue, so
+            # we should not have the ability to add our message.) Third, if we
+            # are not shutting down or waiting on the producer to have capacity
+            # to send additional messages, we must be waiting on the source to
+            # provide us with more messages. To improve performance in backlog
+            # scenarios, we don't poll the source unless the we have already
+            # failed to retrieve a message on least one attempt. If we needto
+            # block in any scenario, we also need to keep in mind that there
+            # are scheduled tasks that we have promised to execute within a
+            # reasonable timeframe. We can only wait as long as the next
+            # deadline. If the deadline has already passed, we shouldn't block.
+            now = datetime.now()
+            timeout = task.get_timeout(now)
+            if timeout > 0:
+                if message is not None or self.__shutting_down and len(self.producer) > 0:
+                    logger.trace(
+                        "Waiting for %r for up to %0.4f seconds before next task: %r...",
+                        self.producer,
+                        timeout,
+                        task,
+                    )
+                    self.producer.poll(timeout)
+                elif not self.__shutting_down and iterations_without_source_message > 0:
+                    logger.trace(
+                        "Waiting for %r for up to %0.4f seconds before next task: %r...",
+                        self.source,
+                        timeout,
+                        task,
+                    )
+                    self.source.poll(timeout)
 
-                    if message is None:
-                        logger.trace(
-                            "Waiting for %r for up to %0.4f seconds before next task: %r...",
-                            self.source,
-                            timeout,
-                            task,
-                        )
-                        self.source.poll(timeout)
-                    else:
-                        logger.trace(
-                            "Waiting for %r for up to %0.4f seconds next task: %r...",
-                            self.producer,
-                            timeout,
-                            task,
-                        )
-                        self.producer.poll(timeout)
-        except KeyboardInterrupt as e:
-            logger.debug("Caught %r, shutting down...", e)
-            logger.debug(
-                "Waiting for %s messages to flush and committing positions before exiting...",
-                len(self.producer),
-            )
-            self.producer.flush(60.0)
-            self.source.commit_positions()
+        self.source.commit_positions()
