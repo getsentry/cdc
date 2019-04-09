@@ -2,6 +2,7 @@ import functools
 import logging
 import signal
 from datetime import datetime
+from typing import Any
 
 from cdc.sources import Source
 from cdc.streams import Producer as StreamProducer
@@ -19,7 +20,7 @@ class Producer(object):
         self.__shutting_down = False
         signal.signal(signal.SIGINT, self.__handle_interrupt)
 
-    def __handle_interrupt(self, num, frame):
+    def __handle_interrupt(self, num: int, frame: Any) -> None:
         logger.debug("Caught %r, shutting down...", num)
         logger.debug(
             "Waiting for %s messages to flush and committing positions before exiting...",
