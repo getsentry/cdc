@@ -19,13 +19,11 @@ source:
     backend:
         type: postgres_logical
         options:
-            dsn: 'postgres://postgres@localhost:5432/pgbench'
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
             slot:
-                name: 'example'
-                plugin: 'wal2json'
-                options:
-                    include-xids: 'true'
-                    write-in-chunks: 'true'
+                name: 'pgbench'
+                plugin: 'test_decoding'
+                create: true
 
 producer:
     backend:
@@ -33,4 +31,4 @@ producer:
         options:
             topic: topic
             options:
-                bootstrap.servers: 'localhost:9092'
+                bootstrap.servers: 'sentry_kafka:9093'
