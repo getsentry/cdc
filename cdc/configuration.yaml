@@ -36,3 +36,7 @@ producer:
 dogstatsd:
     host: localhost
     port: 8125
+
+sentry:
+    enabled: false
+    dsn: 'http://KEY@host.docker.internal:8000/PROJECT'
