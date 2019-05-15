@@ -4,9 +4,11 @@ import signal
 from datetime import datetime
 from typing import Any
 
+from datadog import DogStatsd
 from cdc.sources import Source
 from cdc.streams import Producer as StreamProducer
 from cdc.utils.logging import LoggerAdapter
+from cdc.utils.timer import Timer
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
@@ -18,9 +20,11 @@ class Producer(object):
     the destination stream.
     """
 
-    def __init__(self, source: Source, producer: StreamProducer):
+    def __init__(self, source: Source, producer: StreamProducer, datadog: DogStatsd):
         self.source = source
         self.producer = producer
+        self.__timer = Timer(datadog)
+        self.__datadog = datadog
 
         self.__shutting_down = False
         signal.signal(signal.SIGINT, self.__handle_interrupt)
@@ -49,6 +53,7 @@ class Producer(object):
             # shutting down.
             if message is None and not self.__shutting_down:
                 logger.trace("Trying to fetch message from %r...", self.source)
+                self.__timer.init()
                 message = self.source.fetch()
                 if message is not None:
                     logger.trace(
@@ -57,7 +62,9 @@ class Producer(object):
                         message,
                     )
                     iterations_without_source_message = 0
+                    self.__datadog.increment("message_fetched")
                 else:
+                    self.__timer.reset()
                     iterations_without_source_message += 1
                     logger.trace(
                         "Did not receive message (%s attempts so far.)",
@@ -88,6 +95,8 @@ class Producer(object):
                     )
                 else:
                     logger.trace("Succesfully wrote %r to %r.", message, self.producer)
+                    self.__timer.finish()
+                    self.__datadog.increment("message_produced")
                     self.source.set_write_position(message.id, message.position)
                     message = None
 
@@ -104,6 +113,7 @@ class Producer(object):
             while now >= task.deadline:
                 logger.trace("Executing scheduled task: %r", task)
                 task.callable()
+                self.__datadog.increment("task_executed")
                 task = self.source.get_next_scheduled_task(now)
             else:
                 logger.trace("There are no scheduled tasks to perform.")
