@@ -10,6 +10,13 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class ProducerBackend(ABC):
+    """
+    Abstract base class for producer backend implementations.
+
+    For more details on the expected behavior of individual methods, see the
+    documentation on ``Producer``.
+    """
+
     @abstractmethod
     def __len__(self) -> int:
         raise NotImplementedError

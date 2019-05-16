@@ -13,6 +13,10 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class Producer(object):
+    """
+    Coordinates fetching messages from the source database and publishing to
+    the destination stream.
+    """
     def __init__(self, source: Source, producer: StreamProducer):
         self.source = source
         self.producer = producer
@@ -21,6 +25,9 @@ class Producer(object):
         signal.signal(signal.SIGINT, self.__handle_interrupt)
 
     def __handle_interrupt(self, num: int, frame: Any) -> None:
+        # TODO: This doesn't wake up the blocking conditions at the end of the
+        # run loop, so this can end up waiting unnecessarily if there isn't
+        # much activity on the source database.
         logger.debug("Caught %r, shutting down...", num)
         logger.debug(
             "Waiting for %s messages to flush and committing positions before exiting...",
@@ -33,11 +40,12 @@ class Producer(object):
         message = None
         while not self.__shutting_down or len(self.producer):
             # In most circumstances, we won't have a message ready to be
-            # published and we'll need to fetch the next message to publish
-            # from the source. In some situations, there might already be a
-            # message from the last loop iteration that is still waiting to be
-            # sent. If that's the case, we don't need to get a new message. We
-            # also don't need to receive any messages if we're shutting down.
+            # published, and we'll need to fetch the next message to publish
+            # from the source. There may already be a message ready to be sent
+            # if we were unable to successfully publish the message during the
+            # last loop iteration -- if that's the case, we don't need to get a
+            # new message. We also don't need to receive any messages if we're
+            # shutting down.
             if message is None and not self.__shutting_down:
                 logger.trace("Trying to fetch message from %r...", self.source)
                 message = self.source.fetch()

@@ -13,6 +13,13 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class SourceBackend(ABC):
+    """
+    Abstract base class for source backend implementations.
+
+    For more details on the expected behavior of individual methods, see the
+    documentation on ``Source``.
+    """
+
     @abstractmethod
     def fetch(self) -> Union[None, Tuple[Position, Payload]]:
         raise NotImplementedError

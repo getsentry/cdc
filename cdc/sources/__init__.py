@@ -15,6 +15,14 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class Source(object):
+    """
+    Source for replication messages. This class also is reponsible for managing
+    replication log positions.
+
+    This class contains the interfaces to common functionality for all types of
+    generic replication message sources. The specific details are delegated to
+    the backend implementation.
+    """
     def __init__(
         self,
         backend: SourceBackend,
@@ -25,7 +33,11 @@ class Source(object):
             commit_positions_after_seconds = 60.0
 
         self.__backend = backend
+
+        # The maximum number of flushed messages between committing positions.
         self.__commit_messages = commit_positions_after_flushed_messages
+
+        # The maximum number of seconds to wait between committing positions.
         self.__commit_timeout = commit_positions_after_seconds
 
         self.__id_generator = itertools.count(1)
@@ -45,6 +57,12 @@ class Source(object):
         )
 
     def fetch(self) -> Union[None, Message]:
+        """
+        Attempts to fetch the next message from the source backend. If no
+        message is ready, ``None`` is returned instead.
+
+        This method should not block.
+        """
         result = self.__backend.fetch()
         if result is not None:
             return Message(Id(next(self.__id_generator)), result[0], result[1])
@@ -52,21 +70,42 @@ class Source(object):
             return None
 
     def poll(self, timeout: float) -> None:
+        """
+        Waits until the a message is ready to be fetched from the source
+        backend or the timeout is reached.
+        """
         self.__backend.poll(timeout)
 
     def set_write_position(self, id: Id, position: Position) -> None:
+        """
+        Sets the current write position.
+
+        The position passed to this method represents the last message that was
+        written to the destination but has not guaranteed to have been written
+        durably.
+        """
         logger.trace("Updating write position of %r to %s...", self, position)
         assert (self.__write_id or 0) + 1 == id
         self.__write_id = id
         self.__write_position = position
 
     def set_flush_position(self, id: Id, position: Position) -> None:
+        """
+        Sets the current flush position.
+
+        The position passed to this method represents the last message that was
+        written to the destination and has been guaranteed to be have been
+        written durably.
+        """
         logger.trace("Updating flush position of %r to %s...", self, position)
         assert (self.__flush_id or 0) + 1 == id
         self.__flush_id = id
         self.__flush_position = position
 
     def commit_positions(self) -> None:
+        """
+        Commits the current write and flush positions to the source.
+        """
         logger.trace("Committing positions...")
         self.__backend.commit_positions(self.__write_position, self.__flush_position)
         logger.debug(
@@ -78,6 +117,9 @@ class Source(object):
         self.__last_commit_datetime = datetime.now()
 
     def get_next_scheduled_task(self, now: datetime) -> ScheduledTask:
+        """
+        Returns the next scheduled task to be performed.
+        """
         if (
             self.__commit_messages is not None
             and self.__flush_id is not None

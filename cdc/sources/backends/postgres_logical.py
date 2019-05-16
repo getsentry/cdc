@@ -21,6 +21,10 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class PostgresLogicalReplicationSlotBackend(SourceBackend):
+    """
+    Provides a source backend implementation backed by PostgreSQL's logical
+    replication slot concepts.
+    """
     def __init__(
         self,
         dsn: str,
@@ -40,10 +44,22 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
             keepalive_interval = 10.0
 
         self.__dsn = dsn
+
+        # The name of the replication slot.
         self.__slot_name = slot_name
+
+        # The output plugin used by the replication slot. Only used when
+        # creating a replication slot.
         self.__slot_plugin = slot_plugin
+
+        # The options used by the replication slot's output plugin.
         self.__slot_options = slot_options
+
+        # Whether or not to attempt to create the replication on startup.
         self.__slot_create = slot_create
+
+        # How many seconds to wait between scheduling keepalive messages to be
+        # sent.
         self.__keepalive_interval = keepalive_interval
 
         self.__cursor: cursor = None
