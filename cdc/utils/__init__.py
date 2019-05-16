@@ -4,7 +4,7 @@ import jsonschema  # type: ignore
 
 METRIC_PREFIX = "cdc"
 
-def datadog_factory(configuration: Configuration):
+def datadog_factory(configuration: Configuration) -> DogStatsd:
     jsonschema.validate(
         configuration,
         {

@@ -19,17 +19,17 @@ source:
     backend:
         type: postgres_logical
         options:
-            dsn: 'postgres://postgres@sentry_postgres:5432/sentry'
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
             slot:
-                name: 'sentry'
-                plugin: 'wal2json'
+                name: 'pgbench'
+                plugin: 'test_decoding'
                 create: true
 
 producer:
     backend:
         type: kafka
         options:
-            topic: cdc-topic
+            topic: topic
             options:
                 bootstrap.servers: 'sentry_kafka:9093'
 

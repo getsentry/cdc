@@ -1,6 +1,6 @@
 Click==7.0
+PyYAML==5.1
 confluent-kafka==0.11.6
 datadog==0.21.0
 jsonschema==3.0.1
 psycopg2-binary==2.7.7
-PyYAML==5.1

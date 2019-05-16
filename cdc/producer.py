@@ -62,7 +62,6 @@ class Producer(object):
                         message,
                     )
                     iterations_without_source_message = 0
-                    self.__datadog.increment("message_fetched")
                 else:
                     self.__timer.reset()
                     iterations_without_source_message += 1
