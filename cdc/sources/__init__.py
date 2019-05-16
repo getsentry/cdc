@@ -44,9 +44,6 @@ class Source(object):
             type=type(self).__name__, backend=self.__backend
         )
 
-    def validate(self) -> None:
-        self.__backend.validate()
-
     def fetch(self) -> Union[None, Message]:
         result = self.__backend.fetch()
         if result is not None:

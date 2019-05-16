@@ -26,11 +26,6 @@ class KafkaProducerBackend(ProducerBackend):
     def __len__(self) -> int:
         return len(self.__producer)
 
-    def validate(self) -> None:
-        # TODO: Check the topic configuration, warn loudly if there are too
-        # many partitions, etc.
-        pass
-
     def __delivery_callback(
         self,
         callback: Callable[[], None],

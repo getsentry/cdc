@@ -18,9 +18,6 @@ class Producer(object):
     def __len__(self) -> int:
         return len(self.__backend)
 
-    def validate(self) -> None:
-        self.__backend.validate()
-
     def write(self, payload: Payload, callback: Callable[[], None]) -> None:
         self.__backend.write(payload, callback)
 

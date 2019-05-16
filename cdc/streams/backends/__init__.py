@@ -14,9 +14,6 @@ class ProducerBackend(ABC):
     def __len__(self) -> int:
         raise NotImplementedError
 
-    def validate(self) -> None:
-        logger.trace("Validation is not implemented for %r.", self)
-
     @abstractmethod
     def write(self, payload: Payload, callback: Callable[[], None]) -> None:
         raise NotImplementedError

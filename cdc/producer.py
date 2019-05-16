@@ -29,9 +29,6 @@ class Producer(object):
         self.__shutting_down = True
 
     def run(self) -> None:
-        self.source.validate()
-        self.producer.validate()
-
         iterations_without_source_message = 0
         message = None
         while not self.__shutting_down or len(self.producer):

@@ -13,9 +13,6 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 class SourceBackend(ABC):
-    def validate(self) -> None:
-        logger.trace("Validation is not implemented for %r.", self)
-
     @abstractmethod
     def fetch(self) -> Union[None, Tuple[Position, Payload]]:
         raise NotImplementedError
