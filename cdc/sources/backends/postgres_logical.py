@@ -91,11 +91,11 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
                 self.__cursor.create_replication_slot(
                     self.__slot_name, REPLICATION_LOGICAL, self.__slot_plugin
                 )
-            except psycopg2.ProgrammingError:
-                logger.debug(
-                    "Failed to create replication slot -- assuming it already exists.",
-                    exc_info=True,
-                )
+            except psycopg2.ProgrammingError as e:
+                if str(e).strip() == f"replication slot \"{self.__slot_name}\" already exists":
+                    logger.debug("Replication slot already exists.")
+                else:
+                    raise
             else:
                 logger.debug("Replication slot created.")
 
