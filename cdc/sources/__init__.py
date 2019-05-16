@@ -23,6 +23,7 @@ class Source(object):
     generic replication message sources. The specific details are delegated to
     the backend implementation.
     """
+
     def __init__(
         self,
         backend: SourceBackend,

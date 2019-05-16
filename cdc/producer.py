@@ -17,6 +17,7 @@ class Producer(object):
     Coordinates fetching messages from the source database and publishing to
     the destination stream.
     """
+
     def __init__(self, source: Source, producer: StreamProducer):
         self.source = source
         self.producer = producer

@@ -14,6 +14,7 @@ class Producer(object):
     generic replication message producers. The specific details are delegated
     to the backend implementation.
     """
+
     def __init__(self, backend: ProducerBackend):
         self.__backend = backend
 

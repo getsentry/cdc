@@ -25,6 +25,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
     Provides a source backend implementation backed by PostgreSQL's logical
     replication slot concepts.
     """
+
     def __init__(
         self,
         dsn: str,

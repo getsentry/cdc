@@ -17,6 +17,7 @@ class KafkaProducerBackend(ProducerBackend):
     """
     Provides a producer backend implementation that writes to a Kafka topic.
     """
+
     def __init__(self, topic: str, options: Mapping[str, Any]):
         self.__topic = topic
         self.__producer = Producer(options)
