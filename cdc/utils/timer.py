@@ -44,11 +44,10 @@ class Timer:
             return
 
         start = self.__timers[(metric, tag)]
-        self.recordInterval(start, metric, tag)
+        self.recordSimpleInterval(start, metric, tag)
         self.reset(metric, tag)
         
-
-    def recordInterval(self, start: float, metric: str, tag: str = None) -> None:
+    def recordSimpleInterval(self, start: float, metric: str, tag: str = None) -> None:
         now = time.time()
         duration = int((now - start) * 1000)
         key = "%s.%s" % (self.__key, metric)

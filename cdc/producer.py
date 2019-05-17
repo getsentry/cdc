@@ -87,7 +87,7 @@ class Producer(object):
                 logger.trace("Trying to write message to %r...", self.producer)
                 try:
                     def produce_callback(message: Message, start: float):
-                        self.__timer.recordInterval(start, self.MESSAGE_FLUSH_METRIC)
+                        self.__timer.recordSimpleInterval(start, self.MESSAGE_FLUSH_METRIC)
                         self.source.set_flush_position(message.id, message.position)
                     
                     now = time.time()
