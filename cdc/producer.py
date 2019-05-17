@@ -121,9 +121,10 @@ class Producer(object):
             while now >= task.deadline:
                 logger.trace("Executing scheduled task: %r", task)
                 task.callable()
-                if self.__timer.isinit(self.TASK_EXECUTION_METRIC):
-                    self.__timer.finish(self.TASK_EXECUTION_METRIC) 
-                self.__timer.init(self.TASK_EXECUTION_METRIC) 
+                tag = "%s:%s" % ("tasktype", task.get_type())
+                if self.__timer.isinit(self.TASK_EXECUTION_METRIC, tag):
+                    self.__timer.finish(self.TASK_EXECUTION_METRIC, tag) 
+                self.__timer.init(self.TASK_EXECUTION_METRIC, tag)
                 task = self.source.get_next_scheduled_task(now)
             else:
                 logger.trace("There are no scheduled tasks to perform.")
