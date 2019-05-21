@@ -13,38 +13,6 @@ class Timer:
     def __init__(self, statsd: DogStatsd) -> None:
         self.__statsd = statsd
         self.__timers = {}
-
-    def init(self, metric: str, tag: str = None) -> None:
-        if len(self.__timers) > self.MAX_TIMERS:
-            logger.error("Trying to initialize too many timers.")
-            return
-
-        if (metric, tag) in self.__timers:
-            logger.warning(
-                "Reinitializing existing timer %s - %s without calling reset" % (metric, tag))
-
-        start = time.time()
-        self.__timers[(metric, tag)] = start
-
-    def reset(self, metric: str, tag: str = None) -> None:
-        if (metric, tag) not in self.__timers:
-            logger.error(
-                "Invalid timer state when calling reset (%s, %s). Timer was not initialized." % (metric, tag))
-        
-        del self.__timers[(metric, tag)]
-
-    def isinit(self, metric: str, tag: str = None) -> bool:
-        return (metric, tag) in self.__timers
-
-    def finish(self, metric: str, tag: str = None) -> None:
-        if (metric, tag) not in self.__timers:
-            logger.error(
-                "Invalid timer state when calling finish (%s, %s). Timer was not initialized." % (metric, tag))
-            return
-
-        start = self.__timers[(metric, tag)]
-        self.record_simple_interval(start, metric, tag)
-        self.reset(metric, tag)
         
     def record_simple_interval(self, start: float, metric: str, tag: str = None) -> None:
         now = time.time()
