@@ -23,16 +23,16 @@ class Producer(object):
     the destination stream.
     """
 
-    DATADOG_KEY = "cdc"
     MESSAGE_PRODUCED_METRIC = "message_produced"
     MESSAGE_FLUSH_METRIC = "message_flushed"
     TASK_EXECUTION_METRIC = "task_execution"
+    TASK_EXECUTION_TIME_METRIC = "task_execution"
 
 
     def __init__(self, source: Source, producer: StreamProducer, datadog: DogStatsd):
         self.source = source
         self.producer = producer
-        self.__timer = Timer(self.DATADOG_KEY, datadog)
+        self.__timer = Timer(datadog)
         self.__datadog = datadog
 
         self.__shutting_down = False
@@ -87,7 +87,7 @@ class Producer(object):
                 logger.trace("Trying to write message to %r...", self.producer)
                 try:
                     def produce_callback(message: Message, start: float):
-                        self.__timer.recordSimpleInterval(start, self.MESSAGE_FLUSH_METRIC)
+                        self.__timer.record_simple_interval(start, self.MESSAGE_FLUSH_METRIC)
                         self.source.set_flush_position(message.id, message.position)
                     
                     now = time.time()
@@ -104,7 +104,7 @@ class Producer(object):
                     )
                 else:
                     logger.trace("Succesfully wrote %r to %r.", message, self.producer)
-                    self.__datadog.increment("%s.%s" % (self.DATADOG_KEY, self.MESSAGE_PRODUCED_METRIC))
+                    self.__datadog.increment(self.MESSAGE_PRODUCED_METRIC)
                     self.source.set_write_position(message.id, message.position)
                     message = None
 
@@ -116,15 +116,16 @@ class Producer(object):
             # If there are any scheduled tasks that need to be performed on the
             # source (updating our positions, or sending keep-alive messages,
             # for example), run them now.
-            now = datetime.now()
+            now = datetime.now() 
             task = self.source.get_next_scheduled_task(now)
             while now >= task.deadline:
                 logger.trace("Executing scheduled task: %r", task)
-                task.callable()
+                
                 tag = "%s:%s" % ("tasktype", task.get_type())
-                if self.__timer.isinit(self.TASK_EXECUTION_METRIC, tag):
-                    self.__timer.finish(self.TASK_EXECUTION_METRIC, tag) 
-                self.__timer.init(self.TASK_EXECUTION_METRIC, tag)
+                self.__timer.init(self.TASK_EXECUTION_TIME_METRIC, tag)
+                task.callable()
+                self.__timer.finish(self.TASK_EXECUTION_TIME_METRIC, tag)
+                self.__datadog.increment(self.TASK_EXECUTION_METRIC, tags=[tag])
                 task = self.source.get_next_scheduled_task(now)
             else:
                 logger.trace("There are no scheduled tasks to perform.")

@@ -10,8 +10,7 @@ class Timer:
 
     MAX_TIMERS = 64
 
-    def __init__(self, key: str, statsd: DogStatsd) -> None:
-        self.__key = key
+    def __init__(self, statsd: DogStatsd) -> None:
         self.__statsd = statsd
         self.__timers = {}
 
@@ -44,15 +43,14 @@ class Timer:
             return
 
         start = self.__timers[(metric, tag)]
-        self.recordSimpleInterval(start, metric, tag)
+        self.record_simple_interval(start, metric, tag)
         self.reset(metric, tag)
         
-    def recordSimpleInterval(self, start: float, metric: str, tag: str = None) -> None:
+    def record_simple_interval(self, start: float, metric: str, tag: str = None) -> None:
         now = time.time()
         duration = int((now - start) * 1000)
-        key = "%s.%s" % (self.__key, metric)
         try:
-            self.__statsd.timing(key, duration, tags=[tag] if tag else None)
+            self.__statsd.timing(metric, duration, tags=[tag] if tag else None)
         except Exception as e:
             logger.exception(e)
             

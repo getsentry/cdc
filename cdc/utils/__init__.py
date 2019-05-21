@@ -17,5 +17,5 @@ def datadog_factory(configuration: Configuration) -> DogStatsd:
         },
     )
     return DogStatsd(
-        host=configuration["host"], port=configuration["port"])
+        host=configuration["host"], port=configuration["port"], namespace=METRIC_PREFIX)
 
