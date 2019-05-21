@@ -15,3 +15,7 @@ format:
 	sort -o requirements-dev.txt requirements-dev.txt
 	python -m black cdc/
 .PHONY: format
+
+test:
+	python -m pytest
+.PHONY: test
