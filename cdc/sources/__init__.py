@@ -24,6 +24,8 @@ class Source(object):
     the backend implementation.
     """
 
+    COMMIT_TASK = "commit_position"
+
     def __init__(
         self,
         backend: SourceBackend,
@@ -132,11 +134,12 @@ class Source(object):
             )
             > self.__commit_messages
         ):
-            return ScheduledTask(now, self.commit_positions)
+            return ScheduledTask(now, self.commit_positions, self.COMMIT_TASK)
 
         task = ScheduledTask(
             self.__last_commit_datetime + timedelta(seconds=self.__commit_timeout),
             self.commit_positions,
+            self.COMMIT_TASK
         )
 
         backend_task = self.__backend.get_next_scheduled_task(now)

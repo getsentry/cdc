@@ -142,6 +142,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
             self.__get_cursor(create=False).io_timestamp
             + timedelta(seconds=self.__keepalive_interval),
             self.send_keepalive,
+            "keepalive",
         )
 
 

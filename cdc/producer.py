@@ -1,12 +1,17 @@
 import functools
 import logging
 import signal
+import time
+
 from datetime import datetime
 from typing import Any
+from datadog import DogStatsd
 
-from cdc.sources import Source
+from cdc.sources import Source, Id, Message, Position
 from cdc.streams import Producer as StreamProducer
+
 from cdc.utils.logging import LoggerAdapter
+from cdc.utils.timer import Timer
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
@@ -18,9 +23,16 @@ class Producer(object):
     the destination stream.
     """
 
-    def __init__(self, source: Source, producer: StreamProducer):
+    MESSAGE_WRITTEN_METRIC = "message_written"
+    MESSAGE_FLUSHED_METRIC = "message_flushed"
+    TASK_EXECUTED_TIME_METRIC = "task_executed"
+
+
+    def __init__(self, source: Source, producer: StreamProducer, datadog: DogStatsd):
         self.source = source
         self.producer = producer
+        self.__timer = Timer(datadog)
+        self.__datadog = datadog
 
         self.__shutting_down = False
         signal.signal(signal.SIGINT, self.__handle_interrupt)
@@ -35,6 +47,10 @@ class Producer(object):
             len(self.producer),
         )
         self.__shutting_down = True
+
+    def __produce_callback(self, message: Message, start: float):
+        self.__timer.record_simple_interval(start, self.MESSAGE_FLUSHED_METRIC)
+        self.source.set_flush_position(message.id, message.position)
 
     def run(self) -> None:
         iterations_without_source_message = 0
@@ -73,12 +89,11 @@ class Producer(object):
             if message is not None:
                 logger.trace("Trying to write message to %r...", self.producer)
                 try:
+                    now = time.time()
                     self.producer.write(
                         message.payload,
-                        callback=functools.partial(
-                            self.source.set_flush_position, message.id, message.position
-                        ),
-                    )
+                        callback = functools.partial(self.__produce_callback, message, now))
+
                 except BufferError as e:  # TODO: too coupled to kafka impl
                     logger.trace(
                         "Failed to write %r to %r due to %r, will retry.",
@@ -88,6 +103,7 @@ class Producer(object):
                     )
                 else:
                     logger.trace("Succesfully wrote %r to %r.", message, self.producer)
+                    self.__datadog.increment(self.MESSAGE_WRITTEN_METRIC)
                     self.source.set_write_position(message.id, message.position)
                     message = None
 
@@ -103,7 +119,11 @@ class Producer(object):
             task = self.source.get_next_scheduled_task(now)
             while now >= task.deadline:
                 logger.trace("Executing scheduled task: %r", task)
+                
+                tag = "%s:%s" % ("tasktype", task.get_type())
+                start = time.time()
                 task.callable()
+                self.__timer.record_simple_interval(start, self.TASK_EXECUTED_TIME_METRIC, tag)
                 task = self.source.get_next_scheduled_task(now)
             else:
                 logger.trace("There are no scheduled tasks to perform.")
