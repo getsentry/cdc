@@ -48,6 +48,10 @@ class Producer(object):
         )
         self.__shutting_down = True
 
+    def __produce_callback(self, message: Message, start: float):
+        self.__timer.record_simple_interval(start, self.MESSAGE_FLUSHED_METRIC)
+        self.source.set_flush_position(message.id, message.position)
+
     def run(self) -> None:
         iterations_without_source_message = 0
         message = None
@@ -85,14 +89,10 @@ class Producer(object):
             if message is not None:
                 logger.trace("Trying to write message to %r...", self.producer)
                 try:
-                    def produce_callback(message: Message, start: float):
-                        self.__timer.record_simple_interval(start, self.MESSAGE_FLUSHED_METRIC)
-                        self.source.set_flush_position(message.id, message.position)
-                    
                     now = time.time()
                     self.producer.write(
                         message.payload,
-                        callback = functools.partial(produce_callback, message, now))
+                        callback = functools.partial(self.__produce_callback, message, now))
 
                 except BufferError as e:  # TODO: too coupled to kafka impl
                     logger.trace(
