@@ -13,5 +13,9 @@ clean:
 format:
 	sort -o requirements.txt requirements.txt
 	sort -o requirements-dev.txt requirements-dev.txt
-	python -m black cdc/
+	python -m black cdc/ tests/
 .PHONY: format
+
+test:
+	python -m pytest
+.PHONY: test
