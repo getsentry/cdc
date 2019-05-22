@@ -31,7 +31,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         dsn: str,
         slot_name: str,
         slot_plugin: str,
-        slot_options: Union[Mapping[str, str], None],
+        slot_options: Union[Mapping[str, str], None] = None,
         slot_create: Union[None, bool] = None,
         keepalive_interval: Union[None, float] = None,
     ):
