@@ -5,6 +5,7 @@ import pytest
 import time
 import uuid
 from contextlib import closing
+from datetime import datetime
 from psycopg2.sql import SQL, Identifier
 
 from cdc.sources.backends.postgres_logical import PostgresLogicalReplicationSlotBackend
@@ -72,11 +73,13 @@ def slot_name(dsn):
 
 
 def test(dsn, slot_name):
+    keepalive_interval = 10.0
     create_backend = functools.partial(
         PostgresLogicalReplicationSlotBackend,
         dsn=dsn,
         slot_name=slot_name,
         slot_plugin="test_decoding",
+        keepalive_interval=keepalive_interval,
     )
 
     with pytest.raises(psycopg2.ProgrammingError):
@@ -92,6 +95,14 @@ def test(dsn, slot_name):
             connection.commit()
 
         backend = create_backend(slot_create=True)
+
+        # Ensure that the keepalive interval is valid as soon as the backend is
+        # instantiated, prior to doing any work.
+        now = datetime.now()
+        task = backend.get_next_scheduled_task(now)
+        assert task.callable == backend.send_keepalive
+        assert 0 < task.get_timeout(now) <= keepalive_interval
+
         assert backend.fetch() is None
 
         with connection.cursor() as cursor:
@@ -112,4 +123,27 @@ def test(dsn, slot_name):
         )
 
         result = wait(backend.fetch, lambda result: result is not None)
+        position = result[0]
         assert result[1] == f"COMMIT {xid}".encode("ascii")
+
+        # Ensure that sending a keepalive causes the keepalive deadline to be moved.
+        last_task = task
+        backend.send_keepalive()
+        now = datetime.now()
+        task = backend.get_next_scheduled_task(now)
+        assert task.callable == backend.send_keepalive
+        assert 0 < task.get_timeout(now) <= keepalive_interval
+        assert (
+            task.deadline > last_task.deadline
+        ), "expected task to be scheduled after previous task"
+
+        # Ensure that committing positions causes the keepalive deadline to be moved.
+        last_task = task
+        backend.commit_positions(position, position)
+        now = datetime.now()
+        task = backend.get_next_scheduled_task(now)
+        assert task.callable == backend.send_keepalive
+        assert 0 < task.get_timeout(now) <= keepalive_interval
+        assert (
+            task.deadline > last_task.deadline
+        ), "expected task to be scheduled after previous task"
