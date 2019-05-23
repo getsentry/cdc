@@ -62,6 +62,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         # How many seconds to wait between scheduling keepalive messages to be
         # sent.
         self.__keepalive_interval = keepalive_interval
+        self.__last_keepalive_datetime: datetime = datetime.now()
 
         self.__cursor: cursor = None
 
@@ -133,16 +134,18 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
             send_feedback_kwargs["flush_lsn"] = flush_position
 
         self.__get_cursor().send_feedback(**send_feedback_kwargs)
+        self.__last_keepalive_datetime = datetime.now()
 
     def send_keepalive(self) -> None:
         """
         Send a keep-alive message.
         """
         self.__get_cursor().send_feedback()
+        self.__last_keepalive_datetime = datetime.now()
 
     def get_next_scheduled_task(self, now: datetime) -> Union[None, ScheduledTask]:
         return ScheduledTask(
-            self.__get_cursor(create=False).io_timestamp
+            self.__last_keepalive_datetime
             + timedelta(seconds=self.__keepalive_interval),
             self.send_keepalive,
             "keepalive",
