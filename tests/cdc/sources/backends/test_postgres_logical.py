@@ -126,8 +126,8 @@ def test(dsn, slot_name):
         position = result[0]
         assert result[1] == f"COMMIT {xid}".encode("ascii")
 
-        # Ensure that sending a keepalives and committing positions cause the
-        # keepalive deadline to be moved.
+        # Ensure that sending keepalives and committing positions cause the
+        # keepalive task deadline to be moved.
         for method in [
             backend.send_keepalive,
             functools.partial(backend.commit_positions, position, position),
