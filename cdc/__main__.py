@@ -2,8 +2,10 @@ import atexit
 import click
 import logging, logging.config
 import yaml
-from pkg_resources import cleanup_resources, resource_filename
+import sentry_sdk
 
+from pkg_resources import cleanup_resources, resource_filename
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 atexit.register(cleanup_resources)
 
@@ -33,6 +35,17 @@ def main(ctx, configuration_file, log_level):
     if configuration["version"] != 1:
         raise Exception("Invalid configuration file version")
 
+    if configuration.get("sentry") and configuration["sentry"]["enabled"]:
+        sentry_logging = LoggingIntegration(
+            level=logging.DEBUG,
+            event_level=logging.WARNING
+        )
+        sentry_sdk.init(
+            dsn=configuration['sentry']['dsn'],
+            integrations=[sentry_logging],
+            max_breadcrumbs=10,
+        )
+
     if configuration.get("logging"):
         logging.config.dictConfig(configuration["logging"])
 
@@ -51,13 +64,11 @@ def producer(ctx):
     from cdc.utils import datadog_factory
 
     configuration = ctx.obj
-
     Producer(
         source=source_factory(configuration["source"]),
         producer=producer_factory(configuration["producer"]),
         datadog=datadog_factory(configuration["dogstatsd"]),
     ).run()
-
 
 @main.command(
     help="Consume changes from the stream consumer and apply them to the target."
@@ -68,4 +79,9 @@ def consumer(ctx):
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.exception(e)
+        raise e
