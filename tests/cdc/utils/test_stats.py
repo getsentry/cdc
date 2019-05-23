@@ -8,7 +8,7 @@ from cdc.utils.stats import Stats
 CONFIG = """
 host: "somewhere"
 port: 8125
-msg_sampling_rate: 0.1
+message_sampling_rate: 0.1
 task_sampling_rate: 1
 """
 

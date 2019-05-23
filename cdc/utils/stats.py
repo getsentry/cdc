@@ -27,7 +27,7 @@ class Stats:
                 "properties": {
                     "host": {"type": "string"},
                     "port": {"type": "integer"},
-                    "msg_sampling_rate": {"type": "number"},
+                    "message_sampling_rate": {"type": "number"},
                     "task_sampling_rate": {"type": "number"},
                 },
                 "required": ["host", "port"],
@@ -39,20 +39,20 @@ class Stats:
             namespace=METRIC_PREFIX,
         )
 
-        self.__msg_sampling_rate = configuration.get("msg_sampling_rate")
-        if not self.__msg_sampling_rate:
-            self.__msg_sampling_rate = 1
+        self.__message_sampling_rate = configuration.get("message_sampling_rate")
+        if not self.__message_sampling_rate:
+            self.__message_sampling_rate = 1
 
         self.__task_sampling_rate = configuration.get("task_sampling_rate")
         if not self.__task_sampling_rate:
             self.__task_sampling_rate = 1
 
     def message_written(self) -> None:
-        self.__increment(self.MESSAGE_WRITTEN_METRIC, self.__msg_sampling_rate)
+        self.__increment(self.MESSAGE_WRITTEN_METRIC, self.__message_sampling_rate)
 
     def message_flushed(self, start: int) -> None:
         self.__record_simple_interval(
-            start, self.MESSAGE_FLUSHED_METRIC, self.__msg_sampling_rate
+            start, self.MESSAGE_FLUSHED_METRIC, self.__message_sampling_rate
         )
 
     def task_executed(self, start: int, tasktype: str) -> None:
