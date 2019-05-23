@@ -37,11 +37,10 @@ def main(ctx, configuration_file, log_level):
 
     if configuration.get("sentry") and configuration["sentry"]["enabled"]:
         sentry_logging = LoggingIntegration(
-            level=logging.DEBUG,
-            event_level=logging.WARNING
+            level=logging.DEBUG, event_level=logging.WARNING
         )
         sentry_sdk.init(
-            dsn=configuration['sentry']['dsn'],
+            dsn=configuration["sentry"]["dsn"],
             integrations=[sentry_logging],
             max_breadcrumbs=10,
         )
@@ -69,6 +68,7 @@ def producer(ctx):
         producer=producer_factory(configuration["producer"]),
         stats=Stats(configuration["dogstatsd"]),
     ).run()
+
 
 @main.command(
     help="Consume changes from the stream consumer and apply them to the target."

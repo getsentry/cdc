@@ -21,6 +21,7 @@ class Producer(object):
     Coordinates fetching messages from the source database and publishing to
     the destination stream.
     """
+
     def __init__(self, source: Source, producer: StreamProducer, stats: Stats):
         self.source = source
         self.producer = producer
@@ -84,7 +85,10 @@ class Producer(object):
                     now = time.time()
                     self.producer.write(
                         message.payload,
-                        callback = functools.partial(self.__produce_callback, message, now))
+                        callback=functools.partial(
+                            self.__produce_callback, message, now
+                        ),
+                    )
 
                 except BufferError as e:  # TODO: too coupled to kafka impl
                     logger.trace(
@@ -111,7 +115,7 @@ class Producer(object):
             task = self.source.get_next_scheduled_task(now)
             while now >= task.deadline:
                 logger.trace("Executing scheduled task: %r", task)
-                
+
                 start = time.time()
                 task.callable()
                 self.__stats.task_executed(start, task.get_type())
