@@ -126,24 +126,18 @@ def test(dsn, slot_name):
         position = result[0]
         assert result[1] == f"COMMIT {xid}".encode("ascii")
 
-        # Ensure that sending a keepalive causes the keepalive deadline to be moved.
-        last_task = task
-        backend.send_keepalive()
-        now = datetime.now()
-        task = backend.get_next_scheduled_task(now)
-        assert task.callable == backend.send_keepalive
-        assert 0 < task.get_timeout(now) <= keepalive_interval
-        assert (
-            task.deadline > last_task.deadline
-        ), "expected task to be scheduled after previous task"
-
-        # Ensure that committing positions causes the keepalive deadline to be moved.
-        last_task = task
-        backend.commit_positions(position, position)
-        now = datetime.now()
-        task = backend.get_next_scheduled_task(now)
-        assert task.callable == backend.send_keepalive
-        assert 0 < task.get_timeout(now) <= keepalive_interval
-        assert (
-            task.deadline > last_task.deadline
-        ), "expected task to be scheduled after previous task"
+        # Ensure that sending a keepalives and committing positions cause the
+        # keepalive deadline to be moved.
+        for method in [
+            backend.send_keepalive,
+            functools.partial(backend.commit_positions, position, position),
+        ]:
+            last_task = task
+            method()
+            now = datetime.now()
+            task = backend.get_next_scheduled_task(now)
+            assert task.callable == backend.send_keepalive
+            assert 0 < task.get_timeout(now) <= keepalive_interval
+            assert (
+                task.deadline > last_task.deadline
+            ), "expected task to be scheduled after previous task"
