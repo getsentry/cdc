@@ -61,13 +61,13 @@ def producer(ctx):
     from cdc.producer import Producer
     from cdc.sources import source_factory
     from cdc.streams import producer_factory
-    from cdc.utils import datadog_factory
+    from cdc.utils.stats import Stats
 
     configuration = ctx.obj
     Producer(
         source=source_factory(configuration["source"]),
         producer=producer_factory(configuration["producer"]),
-        datadog=datadog_factory(configuration["dogstatsd"]),
+        stats=Stats(configuration["dogstatsd"]),
     ).run()
 
 @main.command(
