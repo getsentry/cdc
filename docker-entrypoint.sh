@@ -7,7 +7,7 @@ if [ "${1:0:1}" = '-' ]; then
 fi
 
 # Check for a valid cdc subcommand
-if cdc "$1" --help > /dev/null 2>&1; then
+if [ "${1:0:1}" != '/' ] && cdc "$1" --help > /dev/null 2>&1; then
     set -- cdc "$@"
 fi
 
