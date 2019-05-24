@@ -18,10 +18,6 @@ task_sampling_rate: 1
 def test(mock_incr, mock_timing) -> None:
     configuration = yaml.load(CONFIG, Loader=yaml.SafeLoader)
     stats = Stats(configuration)
-    stats.message_written()
-    mock_incr.assert_called_with(
-        Stats.MESSAGE_WRITTEN_METRIC, tags=None, sample_rate=0.1
-    )
 
     stats.message_flushed(10)
     mock_timing.assert_called_with(

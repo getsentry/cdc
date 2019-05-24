@@ -99,7 +99,6 @@ class Producer(object):
                     )
                 else:
                     logger.trace("Succesfully wrote %r to %r.", message, self.producer)
-                    self.__stats.message_written()
                     self.source.set_write_position(message.id, message.position)
                     message = None
 
