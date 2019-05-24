@@ -4,6 +4,7 @@
 .gitignore
 .mypy_cache/
 .travis/
+.freight.yaml
 cloudbuild.yaml
 README.rst
 Makefile
