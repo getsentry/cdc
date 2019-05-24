@@ -6,6 +6,7 @@ from typing import Any, Callable, Mapping, Union
 
 from cdc.sources.types import Payload
 from cdc.streams.backends import ProducerBackend
+from cdc.types import ConfigurationError
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -20,7 +21,7 @@ class KafkaProducerBackend(ProducerBackend):
 
     def __init__(self, topic: str, options: Mapping[str, Any]):
         self.__topic = topic
-        self.__producer = Producer(options)
+        self.__producer = Producer(self.__validate_options(options))
 
     def __repr__(self) -> str:
         return "<{type}: {topic!r}>".format(
@@ -40,6 +41,11 @@ class KafkaProducerBackend(ProducerBackend):
         if error is not None:
             raise Exception(error)
         callback()
+
+    def __validate_options(self, options: Mapping[str, Any]):
+        if options.setdefault("enable.idempotence", "true") not in ["true", True]:
+            raise ConfigurationError("enable.idempotence must be enabled")
+        return options
 
     def write(self, payload: Payload, callback: Callable[[], None]) -> None:
         self.__producer.produce(
