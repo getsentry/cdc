@@ -15,7 +15,6 @@ METRIC_PREFIX = "cdc"
 
 
 class Stats:
-    MESSAGE_WRITTEN_METRIC = "message_written"
     MESSAGE_FLUSHED_METRIC = "message_flushed"
     TASK_EXECUTED_TIME_METRIC = "task_executed"
 
@@ -47,9 +46,6 @@ class Stats:
         if not self.__task_sampling_rate:
             self.__task_sampling_rate = 1
 
-    def message_written(self) -> None:
-        self.__increment(self.MESSAGE_WRITTEN_METRIC, self.__message_sampling_rate)
-
     def message_flushed(self, start: int) -> None:
         self.__record_simple_interval(
             start, self.MESSAGE_FLUSHED_METRIC, self.__message_sampling_rate
@@ -60,12 +56,6 @@ class Stats:
         self.__record_simple_interval(
             start, self.TASK_EXECUTED_TIME_METRIC, self.__task_sampling_rate, [tag]
         )
-
-    def __increment(self, metric: str, sample_rate: int, tags: list = None) -> None:
-        try:
-            self.__dogstatsd.increment(metric, tags=tags, sample_rate=sample_rate)
-        except Exception as e:
-            logger.exception(e)
 
     def __record_simple_interval(
         self, start: float, metric: str, sample_rate: int, tags: list = None
