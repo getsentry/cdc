@@ -84,4 +84,3 @@ if __name__ == "__main__":
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.exception(e)
-        raise e
