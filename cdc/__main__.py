@@ -1,9 +1,11 @@
 import atexit
 import click
 import logging, logging.config
+import signal
 import yaml
 import sentry_sdk
 
+from typing import Any
 from pkg_resources import cleanup_resources, resource_filename
 from sentry_sdk.integrations.logging import LoggingIntegration
 
@@ -63,11 +65,18 @@ def producer(ctx):
     from cdc.utils.stats import Stats
 
     configuration = ctx.obj
-    Producer(
+    producer = Producer(
         source=source_factory(configuration["source"]),
         producer=producer_factory(configuration["producer"]),
         stats=Stats(configuration["dogstatsd"]),
-    ).run()
+    )
+
+    def handle_interrupt(num: int, frame: Any) -> None:
+        logging.getLogger(__name__).debug("Caught %r, shutting down...", num)
+        producer.stop()
+
+    signal.signal(signal.SIGINT, handle_interrupt)
+    producer.run()
 
 
 @main.command(

@@ -1,6 +1,5 @@
 import functools
 import logging
-import signal
 import time
 
 from datetime import datetime
@@ -28,13 +27,11 @@ class Producer(object):
         self.__stats = stats
 
         self.__shutting_down = False
-        signal.signal(signal.SIGINT, self.__handle_interrupt)
 
-    def __handle_interrupt(self, num: int, frame: Any) -> None:
+    def stop(self) -> None:
         # TODO: This doesn't wake up the blocking conditions at the end of the
         # run loop, so this can end up waiting unnecessarily if there isn't
         # much activity on the source database.
-        logger.debug("Caught %r, shutting down...", num)
         logger.debug(
             "Waiting for %s messages to flush and committing positions before exiting...",
             len(self.producer),
