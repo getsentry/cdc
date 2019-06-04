@@ -43,8 +43,20 @@ class KafkaProducerBackend(ProducerBackend):
         callback()
 
     def __validate_options(self, options: Mapping[str, Any]):
-        if options.setdefault("enable.idempotence", "true") not in ["true", True]:
-            raise ConfigurationError("enable.idempotence must be enabled")
+        aliases = {
+            True: frozenset(['true']),
+        }
+
+        requirements = {
+            "enable.idempotence": True,
+            "enable.gapless.guarantee": True,
+        }
+
+        for key, value in requirements.items():
+            valid_values = frozenset([value]) | aliases.get(value, frozenset())
+            if options.setdefault(key, value) not in valid_values:
+                raise ConfigurationError(f"{key!r} must be set to one of {valid_values!r}")
+
         return options
 
     def write(self, payload: Payload, callback: Callable[[], None]) -> None:
