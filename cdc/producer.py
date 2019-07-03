@@ -38,7 +38,7 @@ class Producer(object):
         )
         self.__shutting_down = True
 
-    def __produce_callback(self, message: Message, start: float):
+    def __produce_callback(self, message: Message, start: float) -> None:
         self.__stats.message_flushed(start)
         self.source.set_flush_position(message.id, message.position)
 

@@ -34,8 +34,8 @@ class KafkaProducerBackend(ProducerBackend):
         self,
         callback: Callable[[], None],
         error: Union[None, KafkaError],
-        *args,
-        **kwargs
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         if error is not None:
             raise Exception(error)
