@@ -79,14 +79,12 @@ class Producer(object):
             if message is not None:
                 logger.trace("Trying to write message to %r...", self.producer)
                 try:
-                    now = time.time()
                     self.producer.write(
                         message.payload,
                         callback=functools.partial(
-                            self.__produce_callback, message, now
+                            self.__produce_callback, message, time.time()
                         ),
                     )
-
                 except BufferError as e:  # TODO: too coupled to kafka impl
                     logger.trace(
                         "Failed to write %r to %r due to %r, will retry.",
