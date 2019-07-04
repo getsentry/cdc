@@ -14,7 +14,6 @@ from cdc.sources.backends import SourceBackend
 from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
 from cdc.utils.logging import LoggerAdapter
-from cdc.utils.registry import Configuration
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
@@ -42,7 +41,7 @@ class Configuration:
     slot: SlotConfiguration
 
     # How many seconds to wait between scheduling keepalive messages to be sent.
-    keepalive_interval: Optional[float] = 10.0
+    keepalive_interval: float = 10.0
 
 
 class PostgresLogicalReplicationSlotBackend(SourceBackend):
@@ -69,7 +68,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         elif not create:
             raise Exception("cursor not already established")
 
-        logger.debug("Establishing replication connection to %r...", self.__dsn)
+        logger.debug("Establishing replication connection to %r...", self.__configuration.dsn)
         self.__cursor = psycopg2.connect(
             self.__configuration.dsn, connection_factory=LogicalReplicationConnection
         ).cursor()

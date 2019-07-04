@@ -2,8 +2,7 @@ import jsonschema  # type: ignore
 from typing import Callable
 
 from cdc.sources.types import Payload
-from cdc.streams.backends import ProducerBackend, producer_registry
-from cdc.utils.registry import Configuration
+from cdc.streams.backends import ProducerBackend
 
 
 class Producer(object):

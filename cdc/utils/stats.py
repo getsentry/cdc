@@ -6,7 +6,6 @@ import time
 
 
 from cdc.utils.logging import LoggerAdapter
-from cdc.utils.registry import Configuration
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
@@ -18,33 +17,10 @@ class Stats:
     MESSAGE_FLUSHED_METRIC = "message_flushed"
     TASK_EXECUTED_TIME_METRIC = "task_executed"
 
-    def __init__(self, configuration: Configuration) -> None:
-        jsonschema.validate(
-            configuration,
-            {
-                "type": "object",
-                "properties": {
-                    "host": {"type": "string"},
-                    "port": {"type": "integer"},
-                    "message_sampling_rate": {"type": "number"},
-                    "task_sampling_rate": {"type": "number"},
-                },
-                "required": ["host", "port"],
-            },
-        )
-        self.__dogstatsd = DogStatsd(
-            host=configuration["host"],
-            port=configuration["port"],
-            namespace=METRIC_PREFIX,
-        )
-
-        self.__message_sampling_rate = configuration.get("message_sampling_rate")
-        if not self.__message_sampling_rate:
-            self.__message_sampling_rate = 1
-
-        self.__task_sampling_rate = configuration.get("task_sampling_rate")
-        if not self.__task_sampling_rate:
-            self.__task_sampling_rate = 1
+    def __init__(self, host: str, port: int, message_sampling_rate: float = 1.0, task_sampling_rate: float = 1.0) -> None:
+        self.__dogstatsd = DogStatsd(host=host, port=port, namespace=METRIC_PREFIX)
+        self.__message_sampling_rate = message_sampling_rate
+        self.__task_sampling_rate = task_sampling_rate
 
     def message_flushed(self, start: int) -> None:
         self.__record_simple_interval(

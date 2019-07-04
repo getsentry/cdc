@@ -32,11 +32,3 @@ class ProducerBackend(ABC):
     @abstractmethod
     def flush(self, timeout: float) -> None:
         raise NotImplementedError
-
-
-from cdc.utils.registry import Registry
-from cdc.streams.backends.kafka import kafka_producer_backend_factory
-
-producer_registry: Registry[ProducerBackend] = Registry(
-    {"kafka": kafka_producer_backend_factory}
-)

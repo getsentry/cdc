@@ -34,21 +34,17 @@ logging.addLevelName(5, "TRACE")
 @click.pass_context
 def main(ctx, configuration_file, log_level):
     configuration = ctx.obj = yaml.load(configuration_file, Loader=yaml.SafeLoader)
-    if configuration["version"] != 1:
+    if configuration.pop("version") != 1:
         raise Exception("Invalid configuration file version")
 
-    if configuration.get("sentry") and configuration["sentry"]["enabled"]:
-        sentry_logging = LoggingIntegration(
-            level=logging.DEBUG, event_level=logging.WARNING
-        )
-        sentry_sdk.init(
-            dsn=configuration["sentry"]["dsn"],
-            integrations=[sentry_logging],
-            max_breadcrumbs=10,
-        )
+    if 'sentry' in configuration:
+        sentry_configuration = configuration.pop('sentry')
+        if sentry_configuration.get('enabled', False):
+            sentry_logging = LoggingIntegration(level=logging.DEBUG, event_level=logging.WARNING)
+            sentry_sdk.init(dsn=sentry_configuration["dsn"], integrations=[sentry_logging], max_breadcrumbs=10)
 
-    if configuration.get("logging"):
-        logging.config.dictConfig(configuration["logging"])
+    if 'logging' in configuration:
+        logging.config.dictConfig(configuration.pop("logging"))
 
     if log_level is not None:
         logging.getLogger().setLevel(logging._nameToLevel[log_level])
@@ -60,18 +56,11 @@ def main(ctx, configuration_file, log_level):
 @click.pass_context
 def producer(ctx):
     from cdc.producer import Producer
-    from cdc.sources import source_factory
-    from cdc.streams import producer_factory
-    from cdc.utils.stats import Stats
+    from cdc.utils.loader import load
 
-    configuration = ctx.obj
-    producer = Producer(
-        source=source_factory(configuration["source"]),
-        producer=producer_factory(configuration["producer"]),
-        stats=Stats(configuration["dogstatsd"]),
-    )
+    producer: Producer = load(Producer, ctx.obj)
 
-    def handle_interrupt(num: int, frame: Any) -> None:
+    def handle_interrupt(num: int, *args: Any, **kwargs: Any) -> None:
         logging.getLogger(__name__).debug("Caught %r, shutting down...", num)
         producer.stop()
 

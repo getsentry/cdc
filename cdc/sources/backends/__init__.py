@@ -6,7 +6,6 @@ from typing import Optional, Tuple
 from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
 from cdc.utils.logging import LoggerAdapter
-from cdc.utils.registry import Registry
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
@@ -37,10 +36,3 @@ class SourceBackend(ABC):
     @abstractmethod
     def get_next_scheduled_task(self, now: datetime) -> Optional[ScheduledTask]:
         raise NotImplementedError
-
-
-from cdc.sources.backends.postgres_logical import postgres_logical_factory
-
-registry: Registry[SourceBackend] = Registry(
-    {"postgres_logical": postgres_logical_factory}
-)

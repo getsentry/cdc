@@ -5,11 +5,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
 
-from cdc.sources.backends import SourceBackend, registry
+from cdc.sources.backends import SourceBackend
 from cdc.sources.types import Id, Message, Position
 from cdc.types import ScheduledTask
 from cdc.utils.logging import LoggerAdapter
-from cdc.utils.registry import Configuration
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))

@@ -7,7 +7,6 @@ from typing import Any, Callable, Mapping, Optional
 from cdc.sources.types import Payload
 from cdc.streams.backends import ProducerBackend
 from cdc.utils.logging import LoggerAdapter
-from cdc.utils.registry import Configuration
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
