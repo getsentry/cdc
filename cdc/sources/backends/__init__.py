@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Tuple, Union
+from typing import Optional, Tuple
 
 from cdc.sources.types import Payload, Position
 from cdc.types import ScheduledTask
@@ -21,7 +21,7 @@ class SourceBackend(ABC):
     """
 
     @abstractmethod
-    def fetch(self) -> Union[None, Tuple[Position, Payload]]:
+    def fetch(self) -> Optional[Tuple[Position, Payload]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -31,13 +31,13 @@ class SourceBackend(ABC):
     @abstractmethod
     def commit_positions(
         self,
-        write_position: Union[None, Position],
-        flush_position: Union[None, Position],
+        write_position: Optional[Position],
+        flush_position: Optional[Position],
     ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def get_next_scheduled_task(self, now: datetime) -> Union[None, ScheduledTask]:
+    def get_next_scheduled_task(self, now: datetime) -> Optional[ScheduledTask]:
         raise NotImplementedError
 
 

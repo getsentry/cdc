@@ -2,7 +2,7 @@ from collections import deque
 from datetime import datetime, timedelta
 from unittest.mock import ANY, call, MagicMock
 from threading import Event, Semaphore, Thread
-from typing import Any, Callable, List, Mapping, Tuple, Union
+from typing import Any, Callable, List, Mapping, Optional, Tuple
 
 from cdc.sources import Source, Message
 from cdc.sources.backends import SourceBackend
@@ -49,20 +49,20 @@ class FakeSourceBackend(SourceBackend):
     def poll(self, timeout: float) -> None:
         return
 
-    def fetch(self) -> Union[None, Tuple[Position, Payload]]:
+    def fetch(self) -> Optional[Tuple[Position, Payload]]:
         self.mocked_fetch() # calls the mocked method to be able to run assertions
         try:
             return next(self.__messages)
         except:
             return None
 
-    def get_next_scheduled_task(self, now: datetime) -> Union[None, ScheduledTask]: 
+    def get_next_scheduled_task(self, now: datetime) -> Optional[ScheduledTask]: 
         pass
 
     def commit_positions(
         self,
-        write_position: Union[None, Position],
-        flush_position: Union[None, Position],
+        write_position: Optional[Position],
+        flush_position: Optional[Position],
     ) -> None:
         pass
 

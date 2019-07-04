@@ -2,7 +2,7 @@ import functools
 import jsonschema  # type: ignore
 import logging
 from confluent_kafka import KafkaError, Producer  # type: ignore
-from typing import Any, Callable, Mapping, Union
+from typing import Any, Callable, Mapping, Optional
 
 from cdc.sources.types import Payload
 from cdc.streams.backends import ProducerBackend
@@ -33,7 +33,7 @@ class KafkaProducerBackend(ProducerBackend):
     def __delivery_callback(
         self,
         callback: Callable[[], None],
-        error: Union[None, KafkaError],
+        error: Optional[KafkaError],
         *args: Any,
         **kwargs: Any,
     ) -> None:
