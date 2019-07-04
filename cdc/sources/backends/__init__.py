@@ -30,9 +30,7 @@ class SourceBackend(ABC):
 
     @abstractmethod
     def commit_positions(
-        self,
-        write_position: Optional[Position],
-        flush_position: Optional[Position],
+        self, write_position: Optional[Position], flush_position: Optional[Position]
     ) -> None:
         raise NotImplementedError
 

@@ -1,7 +1,7 @@
 import functools
-import jsonschema  # type: ignore
 import logging
 from confluent_kafka import KafkaError, Producer  # type: ignore
+from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Optional
 
 from cdc.sources.types import Payload
@@ -13,18 +13,24 @@ from cdc.utils.registry import Configuration
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 
+@dataclass(frozen=True)
+class Configuration:
+    topic: str
+    options: Mapping[str, Any] = field(default_factory=dict)
+
+
 class KafkaProducerBackend(ProducerBackend):
     """
     Provides a producer backend implementation that writes to a Kafka topic.
     """
 
-    def __init__(self, topic: str, options: Mapping[str, Any]):
-        self.__topic = topic
-        self.__producer = Producer(options)
+    def __init__(self, configuration: Configuration):
+        self.__configuration = configuration
+        self.__producer = Producer(configuration.options)
 
     def __repr__(self) -> str:
         return "<{type}: {topic!r}>".format(
-            type=type(self).__name__, topic=self.__topic
+            type=type(self).__name__, topic=self.__configuration.topic
         )
 
     def __len__(self) -> int:
@@ -43,7 +49,7 @@ class KafkaProducerBackend(ProducerBackend):
 
     def write(self, payload: Payload, callback: Callable[[], None]) -> None:
         self.__producer.produce(
-            self.__topic,
+            self.__configuration.topic,
             payload,
             callback=functools.partial(self.__delivery_callback, callback),
         )
@@ -53,22 +59,3 @@ class KafkaProducerBackend(ProducerBackend):
 
     def flush(self, timeout: float) -> None:
         self.__producer.flush(timeout)
-
-
-def kafka_producer_backend_factory(
-    configuration: Configuration
-) -> KafkaProducerBackend:
-    jsonschema.validate(
-        configuration,
-        {
-            "type": "object",
-            "properties": {
-                "topic": {"type": "string"},
-                "options": {"type": "object", "properties": {}},  # TODO
-            },
-            "required": ["topic"],
-        },
-    )
-    return KafkaProducerBackend(
-        topic=configuration["topic"], options=configuration["options"]
-    )

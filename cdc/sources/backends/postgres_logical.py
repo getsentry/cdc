@@ -1,6 +1,6 @@
-import jsonschema  # type: ignore
 import logging
 import psycopg2  # type: ignore
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from psycopg2.extensions import cursor  # type: ignore
 from psycopg2.extras import (  # type: ignore
@@ -20,55 +20,47 @@ from cdc.utils.registry import Configuration
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 
+@dataclass(frozen=True)
+class SlotConfiguration:
+    # The name of the replication slot.
+    name: str
+
+    # The output plugin used by the replication slot. Only used when creating a replication slot.
+    plugin: str
+
+    # Whether or not to attempt to create the replication on startup.
+    create: bool = False
+
+    # The options used by the replication slot's output plugin.
+    options: Mapping[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Configuration:
+    dsn: str
+
+    slot: SlotConfiguration
+
+    # How many seconds to wait between scheduling keepalive messages to be sent.
+    keepalive_interval: Optional[float] = 10.0
+
+
 class PostgresLogicalReplicationSlotBackend(SourceBackend):
     """
     Provides a source backend implementation backed by PostgreSQL's logical
     replication slot concepts.
     """
 
-    def __init__(
-        self,
-        dsn: str,
-        slot_name: str,
-        slot_plugin: str,
-        slot_options: Optional[Mapping[str, str]] = None,
-        slot_create: Optional[bool] = None,
-        keepalive_interval: Optional[float] = None,
-    ):
-        if slot_options is None:
-            slot_options = {}
-
-        if slot_create is None:
-            slot_create = False
-
-        if keepalive_interval is None:
-            keepalive_interval = 10.0
-
-        self.__dsn = dsn
-
-        # The name of the replication slot.
-        self.__slot_name = slot_name
-
-        # The output plugin used by the replication slot. Only used when
-        # creating a replication slot.
-        self.__slot_plugin = slot_plugin
-
-        # The options used by the replication slot's output plugin.
-        self.__slot_options = slot_options
-
-        # Whether or not to attempt to create the replication on startup.
-        self.__slot_create = slot_create
-
-        # How many seconds to wait between scheduling keepalive messages to be
-        # sent.
-        self.__keepalive_interval = keepalive_interval
+    def __init__(self, configuration: Configuration):
+        self.__configuration = configuration
         self.__last_keepalive_datetime: datetime = datetime.now()
-
         self.__cursor: cursor = None
 
     def __repr__(self) -> str:
         return "<{type}: {slot!r} on {dsn!r}>".format(
-            type=type(self).__name__, slot=self.__slot_name, dsn=self.__dsn
+            type=type(self).__name__,
+            slot=self.__configuration.slot.name,
+            dsn=self.__configuration.dsn,
         )
 
     def __get_cursor(self, create: bool = False) -> cursor:
@@ -79,23 +71,25 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         logger.debug("Establishing replication connection to %r...", self.__dsn)
         self.__cursor = psycopg2.connect(
-            self.__dsn, connection_factory=LogicalReplicationConnection
+            self.__configuration.dsn, connection_factory=LogicalReplicationConnection
         ).cursor()
 
-        if self.__slot_create:
+        if self.__configuration.slot.create:
             logger.debug(
                 "Creating replication slot %r using %r, if it doesn't already exist...",
-                self.__slot_name,
-                self.__slot_plugin,
+                self.__configuration.slot.name,
+                self.__configuration.slot.plugin,
             )
             try:
                 self.__cursor.create_replication_slot(
-                    self.__slot_name, REPLICATION_LOGICAL, self.__slot_plugin
+                    self.__configuration.slot.name,
+                    REPLICATION_LOGICAL,
+                    self.__configuration.slot.plugin,
                 )
             except psycopg2.ProgrammingError as e:
                 if (
                     str(e).strip()
-                    == f'replication slot "{self.__slot_name}" already exists'
+                    == f'replication slot "{self.__configuration.slot.name}" already exists'
                 ):
                     logger.debug("Replication slot already exists.")
                 else:
@@ -105,7 +99,9 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         logger.debug("Starting replication on %r...", self.__cursor)
         self.__cursor.start_replication(
-            self.__slot_name, REPLICATION_LOGICAL, options=self.__slot_options
+            self.__configuration.slot.name,
+            REPLICATION_LOGICAL,
+            options=self.__configuration.slot.options,
         )
 
         return self.__cursor
@@ -121,9 +117,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         select([self.__get_cursor()], [], [], timeout)
 
     def commit_positions(
-        self,
-        write_position: Optional[Position],
-        flush_position: Optional[Position],
+        self, write_position: Optional[Position], flush_position: Optional[Position]
     ) -> None:
         send_feedback_kwargs = {}
 
@@ -146,41 +140,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
     def get_next_scheduled_task(self, now: datetime) -> Optional[ScheduledTask]:
         return ScheduledTask(
             self.__last_keepalive_datetime
-            + timedelta(seconds=self.__keepalive_interval),
+            + timedelta(seconds=self.__configuration.keepalive_interval),
             self.send_keepalive,
             "keepalive",
         )
-
-
-def postgres_logical_factory(
-    configuration: Configuration
-) -> PostgresLogicalReplicationSlotBackend:
-    jsonschema.validate(
-        configuration,
-        {
-            "type": "object",
-            "properties": {
-                "dsn": {"type": "string"},
-                "slot": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "plugin": {"type": "string"},
-                        "create": {"type": "boolean"},
-                        "options": {"type": "object", "properties": {}},  # TODO
-                    },
-                    "required": ["name", "plugin"],
-                },
-                "keepalive_interval": {"type": "number"},
-            },
-            "required": ["dsn"],
-        },
-    )
-    return PostgresLogicalReplicationSlotBackend(
-        dsn=configuration["dsn"],
-        slot_name=configuration["slot"]["name"],
-        slot_plugin=configuration["slot"]["plugin"],
-        slot_create=configuration["slot"].get("create"),
-        slot_options=configuration["slot"].get("options"),
-        keepalive_interval=configuration.get("keepalive_interval"),
-    )

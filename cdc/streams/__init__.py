@@ -52,28 +52,3 @@ class Producer(object):
         whichever comes first.
         """
         self.__backend.flush(timeout)
-
-
-def producer_factory(configuration: Configuration) -> Producer:
-    jsonschema.validate(
-        configuration,
-        {
-            "type": "object",
-            "properties": {
-                "backend": {
-                    "type": "object",
-                    "properties": {
-                        "type": {"type": "string"},
-                        "options": {"type": "object"},
-                    },
-                    "required": ["type"],
-                }
-            },
-            "required": ["backend"],
-        },
-    )
-    return Producer(
-        backend=producer_registry.new(
-            configuration["backend"]["type"], configuration["backend"]["options"]
-        )
-    )
