@@ -2,7 +2,7 @@ import itertools
 import jsonschema  # type: ignore
 import logging
 from datetime import datetime, timedelta
-from typing import Union
+from typing import Optional
 
 from cdc.sources.backends import SourceBackend, registry
 from cdc.sources.types import Id, Message, Position
@@ -29,8 +29,8 @@ class Source(object):
     def __init__(
         self,
         backend: SourceBackend,
-        commit_positions_after_seconds: Union[None, float] = None,
-        commit_positions_after_flushed_messages: Union[None, int] = None,
+        commit_positions_after_seconds: Optional[float] = None,
+        commit_positions_after_flushed_messages: Optional[int] = None,
     ):
         if commit_positions_after_seconds is None:
             commit_positions_after_seconds = 60.0
@@ -45,13 +45,13 @@ class Source(object):
 
         self.__id_generator = itertools.count(1)
 
-        self.__write_id: Union[None, Id] = None
-        self.__write_position: Union[None, Position] = None
+        self.__write_id: Optional[Id] = None
+        self.__write_position: Optional[Position] = None
 
-        self.__flush_id: Union[None, Id] = None
-        self.__flush_position: Union[None, Position] = None
+        self.__flush_id: Optional[Id] = None
+        self.__flush_position: Optional[Position] = None
 
-        self.__last_commit_flush_id: Union[None, Id] = None
+        self.__last_commit_flush_id: Optional[Id] = None
         self.__last_commit_datetime: datetime = datetime.now()  # TODO: This is kind of a strange default
 
     def __repr__(self) -> str:
@@ -59,7 +59,7 @@ class Source(object):
             type=type(self).__name__, backend=self.__backend
         )
 
-    def fetch(self) -> Union[None, Message]:
+    def fetch(self) -> Optional[Message]:
         """
         Attempts to fetch the next message from the source backend. If no
         message is ready, ``None`` is returned instead.

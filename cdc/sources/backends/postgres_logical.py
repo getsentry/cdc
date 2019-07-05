@@ -8,7 +8,7 @@ from psycopg2.extras import (  # type: ignore
     REPLICATION_LOGICAL,
 )
 from select import select
-from typing import Mapping, Union, Tuple
+from typing import Mapping, Optional, Tuple
 
 from cdc.sources.backends import SourceBackend
 from cdc.sources.types import Payload, Position
@@ -31,9 +31,9 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         dsn: str,
         slot_name: str,
         slot_plugin: str,
-        slot_options: Union[Mapping[str, str], None] = None,
-        slot_create: Union[None, bool] = None,
-        keepalive_interval: Union[None, float] = None,
+        slot_options: Optional[Mapping[str, str]] = None,
+        slot_create: Optional[bool] = None,
+        keepalive_interval: Optional[float] = None,
     ):
         if slot_options is None:
             slot_options = {}
@@ -110,7 +110,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         return self.__cursor
 
-    def fetch(self) -> Union[None, Tuple[Position, Payload]]:
+    def fetch(self) -> Optional[Tuple[Position, Payload]]:
         message = self.__get_cursor(create=True).read_message()
         if message is not None:
             return (Position(message.data_start), Payload(message.payload))
@@ -122,8 +122,8 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
     def commit_positions(
         self,
-        write_position: Union[None, Position],
-        flush_position: Union[None, Position],
+        write_position: Optional[Position],
+        flush_position: Optional[Position],
     ) -> None:
         send_feedback_kwargs = {}
 
@@ -143,7 +143,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         self.__get_cursor().send_feedback()
         self.__last_keepalive_datetime = datetime.now()
 
-    def get_next_scheduled_task(self, now: datetime) -> Union[None, ScheduledTask]:
+    def get_next_scheduled_task(self, now: datetime) -> Optional[ScheduledTask]:
         return ScheduledTask(
             self.__last_keepalive_datetime
             + timedelta(seconds=self.__keepalive_interval),

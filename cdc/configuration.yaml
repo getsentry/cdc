@@ -37,7 +37,7 @@ dogstatsd:
     host: localhost
     port: 8125
     message_sampling_rate: 0.1
-    task_sampling_rate: 1
+    task_sampling_rate: 1.0
 
 sentry:
     enabled: false
