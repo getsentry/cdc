@@ -16,6 +16,21 @@ atexit.register(cleanup_resources)
 # since we'd like this to be available as an option.
 logging.addLevelName(5, "TRACE")
 
+from cdc.utils.loader import Loader
+from cdc.sources import Source, SourceBackend
+from cdc.sources.backends.postgres_logical import PostgresLogicalReplicationSlotBackend
+from cdc.streams import ProducerBackend as StreamProducerBackend
+from cdc.streams.backends.kafka import KafkaProducerBackend
+
+loader = Loader({
+    SourceBackend: {
+        'postgres_logical': PostgresLogicalReplicationSlotBackend,
+    },
+    StreamProducerBackend: {
+        'kafka': KafkaProducerBackend,
+    },
+})
+
 
 @click.group()
 @click.option(
@@ -56,9 +71,8 @@ def main(ctx, configuration_file, log_level):
 @click.pass_context
 def producer(ctx):
     from cdc.producer import Producer
-    from cdc.utils.loader import load
 
-    producer: Producer = load(Producer, ctx.obj)
+    producer: Producer = loader.load(Producer, ctx.obj)
 
     def handle_interrupt(num: int, *args: Any, **kwargs: Any) -> None:
         logging.getLogger(__name__).debug("Caught %r, shutting down...", num)

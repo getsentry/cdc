@@ -33,11 +33,11 @@ producer:
             options:
                 bootstrap.servers: 'sentry_kafka:9093'
 
-dogstatsd:
+stats:
     host: localhost
     port: 8125
     message_sampling_rate: 0.1
-    task_sampling_rate: 1
+    task_sampling_rate: 1.0
 
 sentry:
     enabled: false

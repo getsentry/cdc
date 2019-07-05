@@ -1,7 +1,6 @@
 import itertools
 import jsonschema  # type: ignore
 import logging
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -13,14 +12,6 @@ from cdc.utils.logging import LoggerAdapter
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
-
-@dataclass
-class Configuration:
-    # The maximum number of flushed messages between committing positions.
-    commit_positions_after_seconds: float = 60.0
-
-    # The maximum number of seconds to wait between committing positions.
-    commit_positions_after_flushed_messages: Optional[int] = None
 
 
 class Source(object):
@@ -35,9 +26,14 @@ class Source(object):
 
     COMMIT_TASK = "commit_position"
 
-    def __init__(self, backend: SourceBackend, configuration: Configuration):
+    def __init__(self, backend: SourceBackend, commit_positions_after_seconds: float = 60.0, commit_positions_after_flushed_messages: Optional[int] = None):
         self.__backend = backend
-        self.__configuration = configuration
+
+        # The maximum number of seconds to wait between committing positions.
+        self.__commit_positions_after_seconds = commit_positions_after_seconds
+
+        # The maximum number of flushed messages between committing positions.
+        self.__commit_positions_after_flushed_messages = commit_positions_after_flushed_messages
 
         self.__id_generator = itertools.count(1)
 
@@ -120,7 +116,7 @@ class Source(object):
         Returns the next scheduled task to be performed.
         """
         if (
-            self.__configuration.commit_positions_after_flushed_messages is not None
+            self.__commit_positions_after_flushed_messages is not None
             and self.__flush_id is not None
             and self.__flush_id
             - (
@@ -128,13 +124,13 @@ class Source(object):
                 if self.__last_commit_flush_id is not None
                 else 0
             )
-            > self.__configuration.commit_positions_after_flushed_messages
+            > self.__commit_positions_after_flushed_messages
         ):
             return ScheduledTask(now, self.commit_positions, self.COMMIT_TASK)
 
         task = ScheduledTask(
             self.__last_commit_datetime
-            + timedelta(seconds=self.__configuration.commit_positions_after_seconds),
+            + timedelta(seconds=self.__commit_positions_after_seconds),
             self.commit_positions,
             self.COMMIT_TASK,
         )

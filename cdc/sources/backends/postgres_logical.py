@@ -20,7 +20,7 @@ logger = LoggerAdapter(logging.getLogger(__name__))
 
 
 @dataclass(frozen=True)
-class SlotConfiguration:
+class Slot:
     # The name of the replication slot.
     name: str
 
@@ -34,32 +34,28 @@ class SlotConfiguration:
     options: Mapping[str, str] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
-class Configuration:
-    dsn: str
-
-    slot: SlotConfiguration
-
-    # How many seconds to wait between scheduling keepalive messages to be sent.
-    keepalive_interval: float = 10.0
-
-
 class PostgresLogicalReplicationSlotBackend(SourceBackend):
     """
     Provides a source backend implementation backed by PostgreSQL's logical
     replication slot concepts.
     """
 
-    def __init__(self, configuration: Configuration):
-        self.__configuration = configuration
+    def __init__(self, dsn: str, slot: Slot, keepalive_interval: float = 10.0):
+        self.__dsn = dsn
+
+        self.__slot = slot
+
+        # How many seconds to wait between scheduling keepalive messages to be sent.
+        self.__keepalive_interval: float = 10.0
+
         self.__last_keepalive_datetime: datetime = datetime.now()
         self.__cursor: cursor = None
 
     def __repr__(self) -> str:
         return "<{type}: {slot!r} on {dsn!r}>".format(
             type=type(self).__name__,
-            slot=self.__configuration.slot.name,
-            dsn=self.__configuration.dsn,
+            slot=self.__slot.name,
+            dsn=self.__dsn,
         )
 
     def __get_cursor(self, create: bool = False) -> cursor:
@@ -68,27 +64,27 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         elif not create:
             raise Exception("cursor not already established")
 
-        logger.debug("Establishing replication connection to %r...", self.__configuration.dsn)
+        logger.debug("Establishing replication connection to %r...", self.__dsn)
         self.__cursor = psycopg2.connect(
-            self.__configuration.dsn, connection_factory=LogicalReplicationConnection
+            self.__dsn, connection_factory=LogicalReplicationConnection
         ).cursor()
 
-        if self.__configuration.slot.create:
+        if self.__slot.create:
             logger.debug(
                 "Creating replication slot %r using %r, if it doesn't already exist...",
-                self.__configuration.slot.name,
-                self.__configuration.slot.plugin,
+                self.__slot.name,
+                self.__slot.plugin,
             )
             try:
                 self.__cursor.create_replication_slot(
-                    self.__configuration.slot.name,
+                    self.__slot.name,
                     REPLICATION_LOGICAL,
-                    self.__configuration.slot.plugin,
+                    self.__slot.plugin,
                 )
             except psycopg2.ProgrammingError as e:
                 if (
                     str(e).strip()
-                    == f'replication slot "{self.__configuration.slot.name}" already exists'
+                    == f'replication slot "{self.__slot.name}" already exists'
                 ):
                     logger.debug("Replication slot already exists.")
                 else:
@@ -98,9 +94,9 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         logger.debug("Starting replication on %r...", self.__cursor)
         self.__cursor.start_replication(
-            self.__configuration.slot.name,
+            self.__slot.name,
             REPLICATION_LOGICAL,
-            options=self.__configuration.slot.options,
+            options=self.__slot.options,
         )
 
         return self.__cursor
@@ -139,7 +135,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
     def get_next_scheduled_task(self, now: datetime) -> Optional[ScheduledTask]:
         return ScheduledTask(
             self.__last_keepalive_datetime
-            + timedelta(seconds=self.__configuration.keepalive_interval),
+            + timedelta(seconds=self.__keepalive_interval),
             self.send_keepalive,
             "keepalive",
         )
