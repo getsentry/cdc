@@ -13,7 +13,6 @@ from cdc.utils.logging import LoggerAdapter
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 
-
 class Source(object):
     """
     Source for replication messages. This class also is reponsible for managing
@@ -26,14 +25,21 @@ class Source(object):
 
     COMMIT_TASK = "commit_position"
 
-    def __init__(self, backend: SourceBackend, commit_positions_after_seconds: float = 60.0, commit_positions_after_flushed_messages: Optional[int] = None):
+    def __init__(
+        self,
+        backend: SourceBackend,
+        commit_positions_after_seconds: float = 60.0,
+        commit_positions_after_flushed_messages: Optional[int] = None,
+    ):
         self.__backend = backend
 
         # The maximum number of seconds to wait between committing positions.
         self.__commit_positions_after_seconds = commit_positions_after_seconds
 
         # The maximum number of flushed messages between committing positions.
-        self.__commit_positions_after_flushed_messages = commit_positions_after_flushed_messages
+        self.__commit_positions_after_flushed_messages = (
+            commit_positions_after_flushed_messages
+        )
 
         self.__id_generator = itertools.count(1)
 

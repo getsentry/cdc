@@ -22,14 +22,12 @@ from cdc.sources.backends.postgres_logical import PostgresLogicalReplicationSlot
 from cdc.streams import ProducerBackend as StreamProducerBackend
 from cdc.streams.backends.kafka import KafkaProducerBackend
 
-loader = Loader({
-    SourceBackend: {
-        'postgres_logical': PostgresLogicalReplicationSlotBackend,
-    },
-    StreamProducerBackend: {
-        'kafka': KafkaProducerBackend,
-    },
-})
+loader = Loader(
+    {
+        SourceBackend: {"postgres_logical": PostgresLogicalReplicationSlotBackend},
+        StreamProducerBackend: {"kafka": KafkaProducerBackend},
+    }
+)
 
 
 @click.group()
@@ -52,13 +50,19 @@ def main(ctx, configuration_file, log_level):
     if configuration.pop("version") != 1:
         raise Exception("Invalid configuration file version")
 
-    if 'sentry' in configuration:
-        sentry_configuration = configuration.pop('sentry')
-        if sentry_configuration.get('enabled', False):
-            sentry_logging = LoggingIntegration(level=logging.DEBUG, event_level=logging.WARNING)
-            sentry_sdk.init(dsn=sentry_configuration["dsn"], integrations=[sentry_logging], max_breadcrumbs=10)
+    if "sentry" in configuration:
+        sentry_configuration = configuration.pop("sentry")
+        if sentry_configuration.get("enabled", False):
+            sentry_logging = LoggingIntegration(
+                level=logging.DEBUG, event_level=logging.WARNING
+            )
+            sentry_sdk.init(
+                dsn=sentry_configuration["dsn"],
+                integrations=[sentry_logging],
+                max_breadcrumbs=10,
+            )
 
-    if 'logging' in configuration:
+    if "logging" in configuration:
         logging.config.dictConfig(configuration.pop("logging"))
 
     if log_level is not None:

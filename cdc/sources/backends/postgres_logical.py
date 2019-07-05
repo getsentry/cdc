@@ -53,9 +53,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
     def __repr__(self) -> str:
         return "<{type}: {slot!r} on {dsn!r}>".format(
-            type=type(self).__name__,
-            slot=self.__slot.name,
-            dsn=self.__dsn,
+            type=type(self).__name__, slot=self.__slot.name, dsn=self.__dsn
         )
 
     def __get_cursor(self, create: bool = False) -> cursor:
@@ -77,9 +75,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
             )
             try:
                 self.__cursor.create_replication_slot(
-                    self.__slot.name,
-                    REPLICATION_LOGICAL,
-                    self.__slot.plugin,
+                    self.__slot.name, REPLICATION_LOGICAL, self.__slot.plugin
                 )
             except psycopg2.ProgrammingError as e:
                 if (
@@ -94,9 +90,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         logger.debug("Starting replication on %r...", self.__cursor)
         self.__cursor.start_replication(
-            self.__slot.name,
-            REPLICATION_LOGICAL,
-            options=self.__slot.options,
+            self.__slot.name, REPLICATION_LOGICAL, options=self.__slot.options
         )
 
         return self.__cursor

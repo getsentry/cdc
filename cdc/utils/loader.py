@@ -14,7 +14,7 @@ def typecheck(value, type):
     if type == Any:
         return True
 
-    if hasattr(type, '__origin__'):
+    if hasattr(type, "__origin__"):
         container = type.__origin__
         if container == Union:
             for t in type.__args__:
@@ -46,7 +46,7 @@ def typecheck(value, type):
                 if not typecheck(v, value_type):
                     return False
         else:
-            raise TypeError(f'cannot check type {type!r}')
+            raise TypeError(f"cannot check type {type!r}")
         return True
     else:
         # XXX: This is pretty limited in it's usefulness -- this can't handle
@@ -56,7 +56,6 @@ def typecheck(value, type):
 
 
 class Loader:
-
     def __init__(self, registries):
         # registries for abstract base classes
         # concrete classes should be instantiable without casting by passing the dictionary as params
@@ -69,16 +68,18 @@ class Loader:
             value = configuration.get(parameter.name, __unset__)
 
             if value is __unset__ and parameter.default is parameter.empty:
-                raise ConfigurationError(f'Missing required parameter: {parameter!r}')
+                raise ConfigurationError(f"Missing required parameter: {parameter!r}")
 
-            value is not __unset__:
+            if value is not __unset__:
                 # If this parameter represents an abstract type that needs to
                 # be substituted with a concrete one, do that now.
                 if parameter.annotation in self.__registries:
                     registry = self.__registries[parameter.annotation]
-                    value = self.load(registry[value['type']], value.get('options', {}))
+                    value = self.load(registry[value["type"]], value.get("options", {}))
 
-                if isinstance(value, Mapping) and not typecheck(value, parameter.annotation):
+                if isinstance(value, Mapping) and not typecheck(
+                    value, parameter.annotation
+                ):
                     # XXX: Need to make sure that annotation is not a plain
                     # dictionary, generic mapping, or abstract mapping
                     # (including through a Union type, or a tree of Union
@@ -86,7 +87,9 @@ class Loader:
                     value = self.load(parameter.annotation, value)
 
                 if not typecheck(value, parameter.annotation):
-                    raise ConfigurationError(f'Invalid type for parameter: {parameter!r}')
+                    raise ConfigurationError(
+                        f"Invalid type for parameter: {parameter!r}"
+                    )
 
                 arguments[parameter.name] = value
 
