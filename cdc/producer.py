@@ -3,9 +3,8 @@ import logging
 import time
 
 from datetime import datetime
-from typing import Any
 
-from cdc.sources import Source, Id, Message, Position
+from cdc.sources import Source, Message
 from cdc.streams import Producer as StreamProducer
 
 from cdc.utils.logging import LoggerAdapter
