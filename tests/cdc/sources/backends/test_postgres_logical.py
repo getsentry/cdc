@@ -39,6 +39,14 @@ def dsn():
             yield template.format(database=database_name)
         finally:
             with connection.cursor() as cursor:
+                # Kill all connections to the test database.
+                # This will not delete our current connection cause we are
+                # connected to the "postgres" database.
+                cursor.execute(
+                    "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = %s",
+                    [database_name]
+                )
+
                 cursor.execute(
                     SQL("DROP DATABASE {}").format(Identifier(database_name))
                 )
