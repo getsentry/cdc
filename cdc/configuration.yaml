@@ -25,6 +25,14 @@ source:
                 plugin: 'test_decoding'
                 create: true
 
+snapshot:
+    default_tables:
+        - grouped_message
+    dump:
+        type: file
+        options:
+            location: '/tmp/cdc-snapshots/'
+
 producer:
     backend:
         type: kafka

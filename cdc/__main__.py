@@ -87,6 +87,23 @@ def consumer(ctx):
     raise NotImplementedError
 
 
+@main.command(
+    help="Takes a snapshot and coordinate the process to load it in Clickhouse"
+)
+@click.option(
+    "-t",
+    "--tables",
+    required=False,
+    multiple=True,
+    default=[],
+    help="Provide the list of tables to take the snapshot of",
+)
+@click.pass_context
+def snapshot(ctx, tables):
+    configuration = ctx.obj
+
+
+
 if __name__ == "__main__":
     try:
         main()
