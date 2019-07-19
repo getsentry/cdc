@@ -100,8 +100,24 @@ def consumer(ctx):
 )
 @click.pass_context
 def snapshot(ctx, tables):
+    from cdc.snapshots.snapshot_coordinator import SnapshotCoordinator
+    from cdc.snapshots.sources import registry as source_registry
+    from cdc.snapshots.destinations import registry as dest_registry
     configuration = ctx.obj
+    coordinator = SnapshotCoordinator(
+        source_registry.new(
+            configuration["source"]["backend"]["type"],
+            configuration["source"]["backend"]["options"],
+        ),
+        dest_registry.new(
+            configuration["snapshot"]["dump"]["type"],
+            configuration["snapshot"]["dump"]["options"],
+        ),
+        configuration["snapshot"],
+        tables,
+    )
 
+    coordinator.start_process()
 
 
 if __name__ == "__main__":
