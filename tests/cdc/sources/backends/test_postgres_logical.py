@@ -9,7 +9,7 @@ from datetime import datetime
 from psycopg2.sql import SQL, Identifier
 
 from cdc.sources.backends.postgres_logical import PostgresLogicalReplicationSlotBackend
-
+from cdc.testutils.fixtures import dsn
 
 def wait(callable, test, attempts=10, delay=1):
     for attempt in range(1, attempts + 1):
@@ -22,26 +22,6 @@ def wait(callable, test, attempts=10, delay=1):
     raise AssertionError(
         f"{callable} did not return a value that passes {test} within {attempts * delay} seconds"
     )
-
-
-@pytest.fixture
-def dsn():
-    template = os.environ.get("CDC_POSTGRES_DSN_TEMPLATE", "postgres:///{database}")
-    database_name = "cdc_test_{uuid}".format(uuid=uuid.uuid1().hex)
-
-    with closing(psycopg2.connect(template.format(database="postgres"))) as connection:
-        connection.autocommit = True
-
-        with connection.cursor() as cursor:
-            cursor.execute(SQL("CREATE DATABASE {}").format(Identifier(database_name)))
-
-        try:
-            yield template.format(database=database_name)
-        finally:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    SQL("DROP DATABASE {}").format(Identifier(database_name))
-                )
 
 
 @pytest.fixture

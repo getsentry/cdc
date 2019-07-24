@@ -19,18 +19,15 @@ source:
     backend:
         type: postgres_logical
         options:
-            dsn: 'postgres://postgres@localhost:5432/sentry'
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
             slot:
-                name: 'cdc'
-                plugin: 'wal2json'
+                name: 'pgbench'
+                plugin: 'test_decoding'
                 create: true
-                options:
-                    include-xids: true
-                    include-timestamp: true
 
 snapshot:
     default_tables:
-        - sentry_groupedmessage
+        - MY_TABLE
     dump:
         type: file
         options:
@@ -40,7 +37,7 @@ producer:
     backend:
         type: kafka
         options:
-            topic: cdc
+            topic: topic
             options:
                 bootstrap.servers: 'sentry_kafka:9093'
 
@@ -52,4 +49,4 @@ dogstatsd:
 
 sentry:
     enabled: false
-    dsn: 'http://05685163480d4e0c8e8b19e4b4740ce9@localhost:8000/2'
+    dsn: 'http://KEY@host.docker.internal:8000/PROJECT'

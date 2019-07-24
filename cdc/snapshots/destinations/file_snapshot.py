@@ -12,11 +12,11 @@ from cdc.utils.registry import Configuration
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 class FileSnapshot(SnapshotDestination):
-    def __init__(self, file: IO[AnyStr]) -> None:
+    def __init__(self, file: IO[bytes]) -> None:
         super(FileSnapshot, self).__init__()
-        self.__file = file
+        self.__file: IO[bytes] = file
 
-    def get_stream(self) -> IO[AnyStr]:
+    def get_stream(self) -> IO[bytes]:
         return  self.__file
 
     def get_name(self) -> str:

@@ -57,12 +57,12 @@ class PostgresSnapshot(SnapshotSource):
                 output.get_stream(),
             )
 
-        output.end_table()
-        logger.debug('Dumped %s rows from %r.', cursor.rowcount, tables[0])
+            output.end_table()
+            logger.debug('Dumped %s rows from %r.', cursor.rowcount, tables[0])
         return snapshot_descriptor
 
 
-def postgres_logical_factory(
+def postgres_snapshot_factory(
     configuration: Configuration
 ) -> PostgresSnapshot:
     jsonschema.validate(

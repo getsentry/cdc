@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import AnyStr, IO, List
+from typing import IO, List, Optional
 
 from cdc.utils.registry import Registry
 
@@ -18,12 +18,12 @@ class SnapshotDestination(ABC):
     on the file system.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__state = DumpState.WAIT_METADATA
-        self.__table = None
+        self.__table: Optional[str] = None
 
     @abstractmethod
-    def get_stream(self) -> IO[AnyStr]:
+    def get_stream(self) -> IO[bytes]:
         """
         Return a file abstraction where the content of the dump should be written
         """
@@ -73,6 +73,7 @@ class SnapshotDestination(ABC):
         """
         assert self.__state == DumpState.WRITE_TABLE, \
             "Cannot write table footer in the current state %s" % self.__state
+        assert self.__table is not None
         self._end_table_impl(self.__table)
         self.__table = None
         self.__state = DumpState.WAIT_TABLE

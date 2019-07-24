@@ -30,22 +30,20 @@ class SnapshotDescriptor:
 
 class SnapshotSource(ABC):
     """
-    Takes a snapshot from the source database.
-    This is a context manager, so we can let the Snapshot Coordinator
-    decide how long to keep the transaciton/cursor open during the process.
+    Takes a snapshot from the source database and store the content into
+    the output object. 
     """
 
     @abstractmethod
-    def dump(self, output: SnapshotDestination, tables: List[str]) -> SnapshotDescriptor:
-        """
-        Actually dumps the snapshot into the output file provided
-        and returns it.
-        """
+    def dump(self,
+        output: SnapshotDestination,
+        tables: List[str],
+    ) -> SnapshotDescriptor:
         raise NotImplementedError
 
 
-from cdc.snapshots.sources.postgres_snapshot import postgres_logical_factory
+from cdc.snapshots.sources.postgres_snapshot import postgres_snapshot_factory
 
 registry: Registry[SnapshotSource] = Registry(
-    {"postgres_logical": postgres_logical_factory}
+    {"postgres_logical": postgres_snapshot_factory}
 )

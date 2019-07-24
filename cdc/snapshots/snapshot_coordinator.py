@@ -56,8 +56,9 @@ class SnapshotCoordinator(ABC):
 
         with self.__destination as out_file:
             logger.info("Snapshot ouput: %s" % out_file.get_name())
-            # do stuff
             snapshot_desc = self.__source.dump(out_file, self.__tables)
             logger.info("Snapshot taken: %s" % snapshot_desc)
+
+            # TODO: coordinate with the consumer to load the snapshot
 
     
