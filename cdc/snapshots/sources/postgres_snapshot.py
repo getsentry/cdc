@@ -7,6 +7,7 @@ from typing import AnyStr, IO, Sequence
 
 import jsonschema  # type: ignore
 import logging
+import uuid
 
 from cdc.snapshots.sources import SnapshotSource
 from cdc.snapshots.snapshot_types import SnapshotDescriptor
@@ -28,12 +29,13 @@ class PostgresSnapshot(SnapshotSource):
             cursor.execute("""
                 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY, DEFERRABLE
                 """)
-            cursor.execute("SELECT txid_current_snapshot(), pg_export_snapshot()")
-            current_snapshot, snapshot_identifier = cursor.fetchone()
-            xmin, xmax, xip_list = current_snapshot.split(':')
+            cursor.execute("SELECT txid_current_snapshot()")
+            current_snapshot = cursor.fetchone()
+            xmin, xmax, xip_list = current_snapshot[0].split(':')
 
+            
             snapshot_descriptor = SnapshotDescriptor(
-                snapshot_identifier,
+                uuid.uuid1(),
                 xmin,
                 xmax,
                 xip_list,
