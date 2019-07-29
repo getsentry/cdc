@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import IO, List, Optional
+from typing import IO, Sequence, Optional
 
+from cdc.snapshots.snapshot_types import SnapshotDescriptor
 from cdc.utils.registry import Registry
 
 class DumpState(Enum):
     WAIT_METADATA = 1
     WAIT_TABLE = 2
-    WRITE_TABLE = 4
+    WRITE_TABLE = 3
 
 
 class SnapshotDestination(ABC):
@@ -34,8 +35,8 @@ class SnapshotDestination(ABC):
         raise NotImplementedError
 
     def set_metadata(self,
-        tables: List[str],
-        snapshot_id: str,
+        tables: Sequence[str],
+        snapshot: SnapshotDescriptor,
     ) -> None:
         """
         Provides some metadata regarding the snapshot.
@@ -43,13 +44,13 @@ class SnapshotDestination(ABC):
         """
         assert self.__state == DumpState.WAIT_METADATA, \
             "Cannot write metadata in the current state: %s" % self.__state
-        self._set_metadata_impl(tables, snapshot_id)
+        self._set_metadata_impl(tables, snapshot)
         self.__state = DumpState.WAIT_TABLE
 
     @abstractmethod
     def _set_metadata_impl(self,
-        tables: List[str],
-        snapshot_id: str,
+        tables: Sequence[str],
+        snapshot: SnapshotDescriptor,
     ) -> None:
         raise NotImplementedError
 
@@ -80,6 +81,7 @@ class SnapshotDestination(ABC):
         
     def _end_table_impl(self, table: str) -> None:
         raise NotImplementedError
+
 
 class DestinationContext(ABC):
     """

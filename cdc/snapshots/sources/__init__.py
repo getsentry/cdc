@@ -1,32 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import AnyStr, IO, List
+from dataclasses import dataclass
+from typing import AnyStr, IO, Sequence
 
 from cdc.utils.registry import Registry
 from cdc.snapshots.destinations import SnapshotDestination
-
-class SnapshotDescriptor:
-    """
-    Represents a database snapshot
-    TODO: Make it less postgres specific
-    """
-    
-    def __init__(self, id: str, xmin: str, xmax: str, xip_list: List[str]):
-        self.id = id
-        self.xmin = xmin
-        self.xmax = xmax
-        self.xip_list = xip_list
-
-    def contains(self, xid: str) -> bool:
-        pass
-
-    def __repr__(self) -> str:
-        return "CDC Snapshot id: %s xmin: %s xmax: %s xip list: %s" % (
-            self.id,
-            self.xmin,
-            self.xmax,
-            self.xip_list,
-        )
-
+from cdc.snapshots.snapshot_types import SnapshotDescriptor
 
 class SnapshotSource(ABC):
     """
@@ -37,7 +15,7 @@ class SnapshotSource(ABC):
     @abstractmethod
     def dump(self,
         output: SnapshotDestination,
-        tables: List[str],
+        tables: Sequence[str],
     ) -> SnapshotDescriptor:
         raise NotImplementedError
 

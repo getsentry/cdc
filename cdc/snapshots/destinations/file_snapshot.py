@@ -3,13 +3,15 @@ import logging
 import tempfile
 
 from abc import ABC, abstractmethod
-from typing import AnyStr, IO, List
+from typing import AnyStr, IO, Sequence
 
 from cdc.snapshots.destinations import DestinationContext, SnapshotDestination
+from cdc.snapshots.snapshot_types import SnapshotDescriptor
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
 logger = LoggerAdapter(logging.getLogger(__name__))
+
 
 class FileSnapshot(SnapshotDestination):
     def __init__(self, file: IO[bytes]) -> None:
@@ -23,11 +25,11 @@ class FileSnapshot(SnapshotDestination):
         return  self.__file.name
 
     def _set_metadata_impl(self,
-        tables: List[str],
-        snapshot_id: str,
+        tables: Sequence[str],
+        snapshot: SnapshotDescriptor,
     ) -> None:
         assert self.__file, "The output file is not open yet."
-        self.__file.write(("# CDC Snapshot: %s \n" % snapshot_id).encode())
+        self.__file.write(("# CDC Snapshot: %s \n" % snapshot.id).encode())
         self.__file.write(("# Tables: %s \n" % ", ".join(tables)).encode())
     
     def _start_table_impl(self, table_name:str) -> None:
@@ -35,6 +37,7 @@ class FileSnapshot(SnapshotDestination):
 
     def _end_table_impl(self, table: str) -> None:
         self.__file.write(("# End table %s\n\n" % table).encode())
+
 
 class FileDestinationContext(DestinationContext):
     
@@ -48,7 +51,7 @@ class FileDestinationContext(DestinationContext):
             delete=False,
             dir=self.__directory,
         )
-        logger.debug("Snapshot file created %s" % self.__file.name)
+        logger.debug("Snapshot file created %s", self.__file.name)
         return FileSnapshot(self.__file)
 
     def __exit__(self, type, value, tb) -> None:

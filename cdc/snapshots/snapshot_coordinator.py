@@ -51,14 +51,12 @@ class SnapshotCoordinator(ABC):
 
 
     def start_process(self) -> None:
-        logger.debug("Starting snapshot process for tables %s" % (",".join(self.__tables)))
+        logger.debug("Starting snapshot process for tables %s", self.__tables)
         # TODO: pause consumer
 
         with self.__destination as out_file:
-            logger.info("Snapshot ouput: %s" % out_file.get_name())
+            logger.info("Snapshot ouput: %s", out_file.get_name())
             snapshot_desc = self.__source.dump(out_file, self.__tables)
-            logger.info("Snapshot taken: %s" % snapshot_desc)
+            logger.info("Snapshot taken: %r", snapshot_desc)
 
             # TODO: coordinate with the consumer to load the snapshot
-
-    

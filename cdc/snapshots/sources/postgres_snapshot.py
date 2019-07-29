@@ -3,12 +3,13 @@ from psycopg2 import ( # type: ignore
     connect,
     sql,
 )
-from typing import AnyStr, IO, List
+from typing import AnyStr, IO, Sequence
 
 import jsonschema  # type: ignore
 import logging
 
-from cdc.snapshots.sources import SnapshotSource, SnapshotDescriptor
+from cdc.snapshots.sources import SnapshotSource
+from cdc.snapshots.snapshot_types import SnapshotDescriptor
 from cdc.snapshots.destinations import SnapshotDestination
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
@@ -19,8 +20,8 @@ class PostgresSnapshot(SnapshotSource):
     def __init__(self, dsn: str) -> None:
         self.__dsn = dsn
     
-    def dump(self, output: SnapshotDestination, tables: List[str]) -> SnapshotDescriptor:
-        assert len(tables) == 1, "We do not support multiple tablesd just yet."
+    def dump(self, output: SnapshotDestination, tables: Sequence[str]) -> SnapshotDescriptor:
+        assert len(tables) == 1, "We do not support multiple tables just yet."
         
         logger.debug("Establishing replication connection to %r...", self.__dsn)
         with connect(self.__dsn).cursor() as cursor:
@@ -38,11 +39,11 @@ class PostgresSnapshot(SnapshotSource):
                 xip_list,
             )
             
-            logger.debug('Snapshot exported %s.' % snapshot_descriptor)
+            logger.debug('Snapshot exported %r.', snapshot_descriptor)
 
             output.set_metadata(
                 tables=tables,
-                snapshot_id=repr(snapshot_descriptor)
+                snapshot=snapshot_descriptor
             )
 
             logger.debug('Dumping data using snapshot: %s...', snapshot_descriptor.id)
