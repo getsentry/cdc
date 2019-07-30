@@ -104,6 +104,7 @@ def snapshot(ctx, tables):
     from cdc.snapshots.sources import registry as source_registry
     from cdc.snapshots.destinations import registry as dest_registry
     configuration = ctx.obj
+    assert tables, "Tables must be provided to take a snapshot."
     coordinator = SnapshotCoordinator(
         source_registry.new(
             configuration["snapshot"]["source"]["type"],
@@ -113,7 +114,6 @@ def snapshot(ctx, tables):
             configuration["snapshot"]["dump"]["type"],
             configuration["snapshot"]["dump"]["options"],
         ),
-        configuration["snapshot"],
         tables,
     )
 

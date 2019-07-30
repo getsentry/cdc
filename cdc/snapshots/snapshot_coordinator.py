@@ -3,10 +3,11 @@ import logging
 import uuid
 
 from abc import ABC, abstractmethod
-from typing import AnyStr, IO, List
+from typing import AnyStr, IO, Sequence
 
 from cdc.snapshots.destinations import DestinationContext
 from cdc.snapshots.sources import SnapshotSource
+from cdc.snapshots.snapshot_types import SnapshotId
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -26,29 +27,10 @@ class SnapshotCoordinator(ABC):
     def __init__(self,
         source: SnapshotSource,
         destination: DestinationContext,
-        configuration: Configuration,
-        tables: List[str]) -> None:
+        tables: Sequence[str]) -> None:
         self.__source = source
         self.__destination = destination
-
-        jsonschema.validate(
-            configuration,
-            {
-                "type": "object",
-                "properties": {
-                    "default_tables": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",    
-                        }
-                    },
-                    "dump": {"type": "object"}
-                },
-                "required": ["default_tables", "dump"],
-            },
-        )
-
-        self.__tables = tables or configuration["default_tables"]
+        self.__tables = tables
 
 
     def start_process(self) -> None:
@@ -57,7 +39,7 @@ class SnapshotCoordinator(ABC):
         logger.info("Starting snapshot ID %s", snapshot_id)
         # TODO: pause consumer
 
-        with self.__destination.open_snapshot(snapshot_id) as snapshot_out:
+        with self.__destination.open_snapshot(SnapshotId(str(snapshot_id))) as snapshot_out:
             logger.info("Snapshot ouput: %s", snapshot_out.get_name())
             snapshot_desc = self.__source.dump(snapshot_out, self.__tables)
             logger.info("Snapshot taken: %r", snapshot_desc)

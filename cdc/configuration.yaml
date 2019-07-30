@@ -30,9 +30,6 @@ snapshot:
         type: postgres
         options:
             dsn: 'postgres://postgres@sentry_postgres:5432/sentry'
-
-    default_tables:
-        - sentry_groupedmessage
     dump:
         type: directory
         options:
