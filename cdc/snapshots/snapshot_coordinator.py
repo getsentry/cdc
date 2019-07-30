@@ -1,5 +1,6 @@
 import jsonschema  # type: ignore
 import logging
+import uuid
 
 from abc import ABC, abstractmethod
 from typing import AnyStr, IO, List
@@ -52,11 +53,13 @@ class SnapshotCoordinator(ABC):
 
     def start_process(self) -> None:
         logger.debug("Starting snapshot process for tables %s", self.__tables)
+        snapshot_id = uuid.uuid1()
+        logger.info("Starting snapshot ID %s", snapshot_id)
         # TODO: pause consumer
 
-        with self.__destination as out_file:
-            logger.info("Snapshot ouput: %s", out_file.get_name())
-            snapshot_desc = self.__source.dump(out_file, self.__tables)
+        with self.__destination.open_snapshot(str(snapshot_id)) as snapshot_out:
+            logger.info("Snapshot ouput: %s", snapshot_out.get_name())
+            snapshot_desc = self.__source.dump(snapshot_out, self.__tables)
             logger.info("Snapshot taken: %r", snapshot_desc)
 
             # TODO: coordinate with the consumer to load the snapshot

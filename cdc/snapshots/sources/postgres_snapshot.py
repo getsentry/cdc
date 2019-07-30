@@ -35,7 +35,6 @@ class PostgresSnapshot(SnapshotSource):
 
             
             snapshot_descriptor = SnapshotDescriptor(
-                uuid.uuid1(),
                 xmin,
                 xmax,
                 xip_list,
@@ -48,19 +47,22 @@ class PostgresSnapshot(SnapshotSource):
                 snapshot=snapshot_descriptor
             )
 
-            logger.debug('Dumping data using snapshot: %s...', snapshot_descriptor.id)
-            output.start_table(tables[0])
-            
-            cursor.copy_expert(
-                sql.SQL(
-                    "COPY (SELECT * FROM {table}) TO STDOUT WITH CSV HEADER"
-                ).format(
-                    table=sql.Identifier(tables[0]),
-                ),
-                output.get_stream(),
-            )
+            with output.open_table(tables[0]) as table_file:
+                logger.debug(
+                    'Dumping table %s using snapshot: %r...',
+                    tables[0],
+                    snapshot_descriptor,
+                )
+                
+                cursor.copy_expert(
+                    sql.SQL(
+                        "COPY (SELECT * FROM {table}) TO STDOUT WITH CSV HEADER"
+                    ).format(
+                        table=sql.Identifier(tables[0]),
+                    ),
+                    table_file,
+                )
 
-            output.end_table()
             logger.debug('Dumped %s rows from %r.', cursor.rowcount, tables[0])
         return snapshot_descriptor
 

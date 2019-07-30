@@ -1,34 +1,37 @@
+import logging
+
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import IO, Sequence, Optional
+from typing import Generator, IO, Sequence, Optional
 
-from cdc.snapshots.snapshot_types import SnapshotDescriptor
+from contextlib import contextmanager
+
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId
+from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Registry
+
+logger = LoggerAdapter(logging.getLogger(__name__))
 
 class DumpState(Enum):
     WAIT_METADATA = 1
     WAIT_TABLE = 2
     WRITE_TABLE = 3
+    ERROR = 4
 
 
 class SnapshotDestination(ABC):
     """
-    Abstracts the destination of our snapshot.
-    The destination wraps a file abstraction enriched with some
-    methods to write metadata. This does not have to be a file
-    on the file system.
+    Abstracts the destination of our snapshot. It is able to open/close
+    the snapshot, allows the caller to provide metadata and it enforces
+    the snapshot is created in a consistent way managing the state.
+
+    This handles a context for each table exposing a file like object
+    for them.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, snapshot_id: SnapshotId) -> None:
         self.__state = DumpState.WAIT_METADATA
-        self.__table: Optional[str] = None
-
-    @abstractmethod
-    def get_stream(self) -> IO[bytes]:
-        """
-        Return a file abstraction where the content of the dump should be written
-        """
-        raise NotImplementedError
+        self.id = snapshot_id
 
     @abstractmethod
     def get_name(self) -> str:
@@ -54,51 +57,82 @@ class SnapshotDestination(ABC):
     ) -> None:
         raise NotImplementedError
 
-    def start_table(self, table_name:str) -> None:
+    @contextmanager
+    def open_table(self, table_name:str) -> Generator[IO[bytes], None, None] :
         """
         Call this to provide the table schema and start the dump
         of one table
         """
         assert self.__state == DumpState.WAIT_TABLE, \
             "Cannot write table header in the current state %s" % self.__state
-        self.__table = table_name
-        self._start_table_impl(table_name)
-        self.__state = DumpState.WRITE_TABLE
+        try:
+            self.__state = DumpState.WRITE_TABLE
+            table_file = self._get_table_file(table_name)
+            logger.debug("Opening table file for %s", table_name)
+            yield table_file
+        except:
+            self.__state = DumpState.ERROR
+            raise
+        else:
+            self.__state = DumpState.WAIT_TABLE
+        finally:
+            self._table_complete(table_file)
+            
 
-    def _start_table_impl(self, table_name:str) -> None:
+    @abstractmethod
+    def _get_table_file(self, table_name:str) -> IO[bytes]:
+        """
+        Returns the open file we will use to dump the table
+        """
         raise NotImplementedError
 
-    def end_table(self) -> None:
+    @abstractmethod
+    def _table_complete(self, table_file: IO[bytes]) -> None:
         """
-        Call this to write the footer of the table
+        Signals we are done with this table
         """
-        assert self.__state == DumpState.WRITE_TABLE, \
-            "Cannot write table footer in the current state %s" % self.__state
-        assert self.__table is not None
-        self._end_table_impl(self.__table)
-        self.__table = None
-        self.__state = DumpState.WAIT_TABLE
-        
-    def _end_table_impl(self, table: str) -> None:
+        raise NotImplementedError
+
+    def close(self) -> None:
+        """
+        Closes the snapshot. This is called by the context manager.
+        """
+        self._close_impl(self.__state)
+
+    @abstractmethod
+    def _close_impl(self, state: DumpState) -> None:
         raise NotImplementedError
 
 
 class DestinationContext(ABC):
     """
-    Manages the lifecycle of the SnapshotDestination
+    Manages the lifecycle of the SnapshotDestination.
+    There are two contexts involved. An external one that manages the entire
+    snapshot and an internal one per table.
     """
     
-    @abstractmethod
-    def __enter__(self) -> SnapshotDestination:
-        raise NotImplementedError
+    @contextmanager
+    def open_snapshot(self, snapshot_id: SnapshotId) -> Generator[SnapshotDestination, None, None] :
+        """
+        Represents the snapshot context. This method handles the initialization
+        of the snapshot and produces a SnapshotDestination object.
+        """
+        try:
+            snapshot = self._open_snapshot_impl(snapshot_id)
+            yield snapshot
+        finally:
+            snapshot.close()
 
     @abstractmethod
-    def __exit__(self, type, value, tb) -> None:
+    def _open_snapshot_impl(self, snapshot_id: SnapshotId) -> SnapshotDestination:
+        """
+        Initializes the SnapshotDestination object.
+        """
         raise NotImplementedError
 
 
-from cdc.snapshots.destinations.file_snapshot import file_dump_factory
+from cdc.snapshots.destinations.file_snapshot import directory_dump_factory
 
 registry: Registry[DestinationContext] = Registry(
-    {"file": file_dump_factory}
+    {"directory": directory_dump_factory}
 )

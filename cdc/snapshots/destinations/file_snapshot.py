@@ -3,64 +3,78 @@ import logging
 import tempfile
 
 from abc import ABC, abstractmethod
-from typing import AnyStr, IO, Sequence
+from os import mkdir, path
+from typing import AnyStr, Generator, IO, Optional, Sequence
 
-from cdc.snapshots.destinations import DestinationContext, SnapshotDestination
-from cdc.snapshots.snapshot_types import SnapshotDescriptor
+from cdc.snapshots.destinations import DestinationContext, DumpState, SnapshotDestination
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 
-class FileSnapshot(SnapshotDestination):
-    def __init__(self, file: IO[bytes]) -> None:
-        super(FileSnapshot, self).__init__()
-        self.__file: IO[bytes] = file
+class DirectorySnapshot(SnapshotDestination):
+    """
+    Snapshot based on directories.
 
-    def get_stream(self) -> IO[bytes]:
-        return  self.__file
+    It creates a main directory based on the snapshot id.
+    It creates a  file per table and a metadata file.
+    When it is closed in a consistent state it adds an empty "compelete" file
+    to mark the snapshot is valid.
+    """
+
+    def __init__(self, snapshot_id: SnapshotId, directory_name: str) -> None:
+        super(DirectorySnapshot, self).__init__(snapshot_id)
+        self.__directory_name = directory_name
 
     def get_name(self) -> str:
-        return  self.__file.name
+        return  self.__directory_name
 
     def _set_metadata_impl(self,
         tables: Sequence[str],
         snapshot: SnapshotDescriptor,
     ) -> None:
-        assert self.__file, "The output file is not open yet."
-        self.__file.write(("# CDC Snapshot: %s \n" % snapshot.id).encode())
-        self.__file.write(("# Tables: %s \n" % ", ".join(tables)).encode())
+        meta_file_name = path.join(self.__directory_name, "metadata.txt")
+        with open(meta_file_name, "w") as meta_file:
+            meta_file.write(("CDC Snapshot: %r \n" % self.id))
+            meta_file.write(("Transactions: %r \n" % snapshot))
+            meta_file.write(("Tables: %s \n" % ", ".join(tables)))
     
-    def _start_table_impl(self, table_name:str) -> None:
-        self.__file.write(("# Table %s\n" % table_name).encode())
-
-    def _end_table_impl(self, table: str) -> None:
-        self.__file.write(("# End table %s\n\n" % table).encode())
-
-
-class FileDestinationContext(DestinationContext):
-    
-    def __init__(self, directory: str) -> None:
-        self.__directory = directory
-
-    def __enter__(self) -> SnapshotDestination:
-        self.__file = tempfile.NamedTemporaryFile(
-            mode="wb",
-            prefix="cdc_snapshot_",
-            delete=False,
-            dir=self.__directory,
+    def _get_table_file(self, table_name:str) -> IO[bytes]:
+        file_name = path.join(
+            self.__directory_name,
+            "table_%s" % table_name,
         )
-        logger.debug("Snapshot file created %s", self.__file.name)
-        return FileSnapshot(self.__file)
+        return open(file_name, "wb")
 
-    def __exit__(self, type, value, tb) -> None:
-        self.__file.close()
+    def _table_complete(self, table_file: IO[bytes]) -> None:
+        table_file.close()
+
+    def _close_impl(self, state: DumpState) -> None:
+        if state != DumpState.ERROR:
+            complete_file_name = path.join(self.__directory_name, "complete")
+            with open(complete_file_name, "w"):
+                pass
+
+class DirectoryDestinationContext(DestinationContext):
+    
+    def __init__(self, directory_name: str) -> None:
+        self.__directory_name = directory_name
+
+    def _open_snapshot_impl(self, snapshot_id: SnapshotId) -> DirectorySnapshot:
+        dir_name = path.join(
+            self.__directory_name,
+            'cdc_snapshot_%s' % snapshot_id,
+        )
+        mkdir(dir_name)
+        logger.debug("Snapshot directory created %s", dir_name)
+        return DirectorySnapshot(snapshot_id, dir_name)
 
 
-def file_dump_factory(
+def directory_dump_factory(
     configuration: Configuration
-) -> FileDestinationContext:
+) -> DirectoryDestinationContext:
     jsonschema.validate(
         configuration,
         {
@@ -71,6 +85,6 @@ def file_dump_factory(
             "required": ["location"],
         },
     )
-    return FileDestinationContext(
-        directory=configuration["location"],
+    return DirectoryDestinationContext(
+        directory_name=configuration["location"],
     )
