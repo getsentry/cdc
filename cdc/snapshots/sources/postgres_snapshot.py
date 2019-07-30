@@ -3,14 +3,14 @@ from psycopg2 import ( # type: ignore
     connect,
     sql,
 )
-from typing import AnyStr, IO, Sequence
+from typing import Any, AnyStr, IO, Mapping, Sequence
 
 import jsonschema  # type: ignore
 import logging
 import uuid
 
 from cdc.snapshots.sources import SnapshotSource
-from cdc.snapshots.snapshot_types import SnapshotDescriptor
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, TablesConfig
 from cdc.snapshots.destinations import SnapshotDestination
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
@@ -21,9 +21,11 @@ class PostgresSnapshot(SnapshotSource):
     def __init__(self, dsn: str) -> None:
         self.__dsn = dsn
     
-    def dump(self, output: SnapshotDestination, tables: Sequence[str]) -> SnapshotDescriptor:
-        assert len(tables) == 1, "We do not support multiple tables just yet."
-        
+    def dump(
+        self,
+        output: SnapshotDestination,
+        tables: Sequence[TablesConfig],
+    ) -> SnapshotDescriptor:        
         logger.debug("Establishing replication connection to %r...", self.__dsn)
         with connect(self.__dsn).cursor() as cursor:
             cursor.execute("""
@@ -33,7 +35,6 @@ class PostgresSnapshot(SnapshotSource):
             current_snapshot = cursor.fetchone()
             xmin, xmax, xip_list = current_snapshot[0].split(':')
 
-            
             snapshot_descriptor = SnapshotDescriptor(
                 xmin,
                 xmax,
@@ -47,23 +48,35 @@ class PostgresSnapshot(SnapshotSource):
                 snapshot=snapshot_descriptor
             )
 
-            with output.open_table(tables[0]) as table_file:
-                logger.debug(
-                    'Dumping table %s using snapshot: %r...',
-                    tables[0],
-                    snapshot_descriptor,
-                )
-                
-                cursor.copy_expert(
-                    sql.SQL(
-                        "COPY (SELECT * FROM {table}) TO STDOUT WITH CSV HEADER"
-                    ).format(
-                        table=sql.Identifier(tables[0]),
-                    ),
-                    table_file,
-                )
+            for table in tables:
+                table_name = table['table']
+                columns = table['columns'] or None
+                with output.open_table(table_name) as table_file:
+                    logger.debug(
+                        'Dumping table %s. Columns %r, using snapshot: %r...',
+                        table_name,
+                        columns,
+                        snapshot_descriptor,
+                    )
+                    
+                    if not columns:
+                        cols_expr = sql.SQL('*')
+                    else:
+                        cols_expr = sql.SQL(', ').join(
+                            [sql.Identifier(column) for column in columns]
+                        )
 
-            logger.debug('Dumped %s rows from %r.', cursor.rowcount, tables[0])
+                    cursor.copy_expert(
+                        sql.SQL(
+                            "COPY (SELECT {columns} FROM {table}) TO STDOUT WITH CSV HEADER"
+                        ).format(
+                            table=sql.Identifier(table_name),
+                            columns=cols_expr,
+                        ),
+                        table_file,
+                    )
+
+                logger.info('Dumped %s rows from %r.', cursor.rowcount, table)
         return snapshot_descriptor
 
 

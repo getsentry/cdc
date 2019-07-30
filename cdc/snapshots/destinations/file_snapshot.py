@@ -9,7 +9,7 @@ from os import mkdir, path
 from typing import AnyStr, Generator, IO, Optional, Sequence
 
 from cdc.snapshots.destinations import DestinationContext, DumpState, SnapshotDestination
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TablesConfig
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -21,14 +21,18 @@ class DirectoryDestinationContext(DestinationContext):
     def __init__(self, directory_name: str) -> None:
         self.__directory_name = directory_name
 
-    def _open_snapshot_impl(self, snapshot_id: SnapshotId) -> DirectorySnapshot:
+    def _open_snapshot_impl(
+        self,
+        snapshot_id: SnapshotId,
+        product: str,
+    ) -> DirectorySnapshot:
         dir_name = path.join(
             self.__directory_name,
-            'cdc_snapshot_%s' % snapshot_id,
+            'cdc_snapshot_%s_%s' % (product, snapshot_id),
         )
         mkdir(dir_name)
         logger.debug("Snapshot directory created %s", dir_name)
-        return DirectorySnapshot(snapshot_id, dir_name)
+        return DirectorySnapshot(snapshot_id, product, dir_name)
 
 
 class DirectorySnapshot(SnapshotDestination):
@@ -41,22 +45,28 @@ class DirectorySnapshot(SnapshotDestination):
     to mark the snapshot is valid.
     """
 
-    def __init__(self, snapshot_id: SnapshotId, directory_name: str) -> None:
-        super(DirectorySnapshot, self).__init__(snapshot_id)
+    def __init__(self, snapshot_id: SnapshotId, product:str, directory_name: str) -> None:
+        super(DirectorySnapshot, self).__init__(snapshot_id, product)
         self.__directory_name = directory_name
 
     def get_name(self) -> str:
         return  self.__directory_name
 
     def _set_metadata_impl(self,
-        tables: Sequence[str],
+        tables: Sequence[TablesConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
         meta_file_name = path.join(self.__directory_name, "metadata.txt")
         with open(meta_file_name, "w") as meta_file:
-            meta_file.write(("CDC Snapshot: %r \n" % self.id))
-            meta_file.write(("Transactions: %r \n" % snapshot))
-            meta_file.write(("Tables: %s \n" % ", ".join(tables)))
+            meta_file.write("CDC Snapshot: %r \n" % self.id)
+            meta_file.write("Product: %s \n" % self.product)
+            meta_file.write("Transactions: %r \n" % snapshot)
+            meta_file.write("Tables:\n")
+            for table in tables:
+                meta_file.write("-%s - %s\n" % (
+                    table['table'],
+                    ','.join(table['columns']),
+                ))
     
     def _get_table_file(self, table_name:str) -> IO[bytes]:
         file_name = path.join(

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from mypy_extensions import TypedDict
 from typing import NewType, Sequence
 
 Xid = NewType("Xid", int)
@@ -14,3 +15,8 @@ class SnapshotDescriptor:
     xmin: Xid
     xmax: Xid
     xip_list: Sequence[Xid]
+
+TablesConfig = TypedDict(
+    'TablesConfig',
+    {'table': str, 'columns': Sequence[str]}
+)

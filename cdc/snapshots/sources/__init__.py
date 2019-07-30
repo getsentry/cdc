@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import AnyStr, IO, Sequence
+from typing import Any, AnyStr, IO, Mapping, Sequence
 
 from cdc.utils.registry import Registry
 from cdc.snapshots.destinations import SnapshotDestination
-from cdc.snapshots.snapshot_types import SnapshotDescriptor
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, TablesConfig
 
 class SnapshotSource(ABC):
     """
@@ -15,7 +15,7 @@ class SnapshotSource(ABC):
     @abstractmethod
     def dump(self,
         output: SnapshotDestination,
-        tables: Sequence[str],
+        tables: Sequence[TablesConfig],
     ) -> SnapshotDescriptor:
         raise NotImplementedError
 

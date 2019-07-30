@@ -30,10 +30,6 @@ snapshot:
         type: postgres
         options:
             dsn: 'postgres://postgres@sentry_postgres:5432/sentry'
-    dump:
-        type: directory
-        options:
-            location: '/tmp/'
 
 producer:
     backend:

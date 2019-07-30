@@ -8,7 +8,7 @@ from typing import Generator, IO, Sequence, Optional
 
 from contextlib import contextmanager
 
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TablesConfig
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Registry
 
@@ -29,19 +29,27 @@ class DestinationContext(ABC):
     """
     
     @contextmanager
-    def open_snapshot(self, snapshot_id: SnapshotId) -> Generator[SnapshotDestination, None, None] :
+    def open_snapshot(
+        self,
+        snapshot_id: SnapshotId,
+        product: str,
+    ) -> Generator[SnapshotDestination, None, None] :
         """
         Represents the snapshot context. This method handles the initialization
         of the snapshot and produces a SnapshotDestination object.
         """
         try:
-            snapshot = self._open_snapshot_impl(snapshot_id)
+            snapshot = self._open_snapshot_impl(snapshot_id, product)
             yield snapshot
         finally:
             snapshot.close()
 
     @abstractmethod
-    def _open_snapshot_impl(self, snapshot_id: SnapshotId) -> SnapshotDestination:
+    def _open_snapshot_impl(
+        self,
+        snapshot_id: SnapshotId,
+        product: str,
+    ) -> SnapshotDestination:
         """
         Initializes the SnapshotDestination object.
         """
@@ -58,8 +66,9 @@ class SnapshotDestination(ABC):
     for them.
     """
 
-    def __init__(self, snapshot_id: SnapshotId) -> None:
+    def __init__(self, snapshot_id: SnapshotId, product:str) -> None:
         self.__state = DumpState.WAIT_METADATA
+        self.product = product
         self.id = snapshot_id
 
     @abstractmethod
@@ -67,7 +76,7 @@ class SnapshotDestination(ABC):
         raise NotImplementedError
 
     def set_metadata(self,
-        tables: Sequence[str],
+        tables: Sequence[TablesConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
         """
@@ -81,7 +90,7 @@ class SnapshotDestination(ABC):
 
     @abstractmethod
     def _set_metadata_impl(self,
-        tables: Sequence[str],
+        tables: Sequence[TablesConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
         raise NotImplementedError

@@ -1,5 +1,6 @@
 import atexit
 import click
+import jsonschema  # type: ignore
 import logging, logging.config
 import signal
 import yaml
@@ -91,30 +92,59 @@ def consumer(ctx):
     help="Takes a snapshot and coordinate the process to load it in Clickhouse"
 )
 @click.option(
-    "-t",
-    "--tables",
-    required=False,
-    multiple=True,
-    default=[],
-    help="Provide the list of tables to take the snapshot of",
+    "-s",
+    "--snapshot-config",
+    type=click.File("r"),
+    help="Path to the snapshot configuration file.",
 )
 @click.pass_context
-def snapshot(ctx, tables):
+def snapshot(ctx, snapshot_config):
     from cdc.snapshots.snapshot_coordinator import SnapshotCoordinator
     from cdc.snapshots.sources import registry as source_registry
     from cdc.snapshots.destinations import registry as dest_registry
     configuration = ctx.obj
-    assert tables, "Tables must be provided to take a snapshot."
+    
+    snapshot_config = yaml.load(snapshot_config, Loader=yaml.SafeLoader)
+    if configuration["version"] != 1:
+        raise Exception("Invalid snapshot configuration file version")
+
+    jsonschema.validate(
+        snapshot_config,
+        {
+            "type": "object",
+            "properties": {
+                #TODO: make product more restrictive once we have a better idea on how to use it
+                "product": {"type": "string"},
+                "dump": {"type": "object"},
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "table": {"type": "string"},
+                            "columns": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            }
+                        }
+                    }
+                }
+            },
+            "required": ["product", "dump", "tables"],
+        },
+    )
+
     coordinator = SnapshotCoordinator(
         source_registry.new(
             configuration["snapshot"]["source"]["type"],
             configuration["snapshot"]["source"]["options"],
         ),
         dest_registry.new(
-            configuration["snapshot"]["dump"]["type"],
-            configuration["snapshot"]["dump"]["options"],
+            snapshot_config["dump"]["type"],
+            snapshot_config["dump"]["options"],
         ),
-        tables,
+        snapshot_config["product"],
+        snapshot_config["tables"],
     )
 
     coordinator.start_process()

@@ -10,12 +10,12 @@ from unittest.mock import MagicMock
 
 from cdc.snapshots.sources.postgres_snapshot import PostgresSnapshot
 from cdc.snapshots.destinations import SnapshotDestination, DumpState
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TablesConfig
 from cdc.testutils.fixtures import dsn
 
 class FakeDestination(SnapshotDestination):
     def __init__(self, snapshot_id: SnapshotId) -> None:
-        super(FakeDestination, self).__init__(snapshot_id)
+        super(FakeDestination, self).__init__(snapshot_id, 'Snuba')
         self.stream = StringIO()
 
     def get_name(self) -> str:
@@ -74,14 +74,21 @@ def test_snapshot(dsn):
 
     snapshot = PostgresSnapshot(dsn)
     snapshot_id = uuid.uuid1()
-    dest = FakeDestination(snapshot_id)
-    desc = snapshot.dump(dest, ["test_snapshot"])
+    dest = FakeDestination(SnapshotId(str(snapshot_id)))
+    tables = [
+        TablesConfig(
+            table= "test_snapshot",
+            columns= ["a", "b", "c"],
+        )
+    ]
+    desc = snapshot.dump(dest, tables)
     dest.close()
     
     assert desc.xmax == desc.xmin # There should not be any running transaciton
     assert desc.xmin is not None
     
-    expected_output = ("META {tables} {snapshot_id}\n"
+    expected_output = (
+        "META {tables} {snapshot_id}\n"
         "START {table}\n"
         "a,b,c\n"
         "1,test,2019-06-16 06:21:39+00\n"
@@ -92,7 +99,7 @@ def test_snapshot(dsn):
         "END TABLE\n"
         "SNAPSHOT OVER\n"
     ).format(
-        tables=["test_snapshot"],
+        tables=tables,
         snapshot_id = str(snapshot_id),
         table="test_snapshot"
     )
