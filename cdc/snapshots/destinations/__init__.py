@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 from abc import ABC, abstractmethod
@@ -17,6 +19,33 @@ class DumpState(Enum):
     WAIT_TABLE = 2
     WRITE_TABLE = 3
     ERROR = 4
+
+
+class DestinationContext(ABC):
+    """
+    Manages the lifecycle of the SnapshotDestination.
+    There are two contexts involved. An external one that manages the entire
+    snapshot and an internal one per table.
+    """
+    
+    @contextmanager
+    def open_snapshot(self, snapshot_id: SnapshotId) -> Generator[SnapshotDestination, None, None] :
+        """
+        Represents the snapshot context. This method handles the initialization
+        of the snapshot and produces a SnapshotDestination object.
+        """
+        try:
+            snapshot = self._open_snapshot_impl(snapshot_id)
+            yield snapshot
+        finally:
+            snapshot.close()
+
+    @abstractmethod
+    def _open_snapshot_impl(self, snapshot_id: SnapshotId) -> SnapshotDestination:
+        """
+        Initializes the SnapshotDestination object.
+        """
+        raise NotImplementedError
 
 
 class SnapshotDestination(ABC):
@@ -101,33 +130,6 @@ class SnapshotDestination(ABC):
 
     @abstractmethod
     def _close_impl(self, state: DumpState) -> None:
-        raise NotImplementedError
-
-
-class DestinationContext(ABC):
-    """
-    Manages the lifecycle of the SnapshotDestination.
-    There are two contexts involved. An external one that manages the entire
-    snapshot and an internal one per table.
-    """
-    
-    @contextmanager
-    def open_snapshot(self, snapshot_id: SnapshotId) -> Generator[SnapshotDestination, None, None] :
-        """
-        Represents the snapshot context. This method handles the initialization
-        of the snapshot and produces a SnapshotDestination object.
-        """
-        try:
-            snapshot = self._open_snapshot_impl(snapshot_id)
-            yield snapshot
-        finally:
-            snapshot.close()
-
-    @abstractmethod
-    def _open_snapshot_impl(self, snapshot_id: SnapshotId) -> SnapshotDestination:
-        """
-        Initializes the SnapshotDestination object.
-        """
         raise NotImplementedError
 
 

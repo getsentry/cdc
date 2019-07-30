@@ -57,7 +57,7 @@ class SnapshotCoordinator(ABC):
         logger.info("Starting snapshot ID %s", snapshot_id)
         # TODO: pause consumer
 
-        with self.__destination.open_snapshot(str(snapshot_id)) as snapshot_out:
+        with self.__destination.open_snapshot(snapshot_id) as snapshot_out:
             logger.info("Snapshot ouput: %s", snapshot_out.get_name())
             snapshot_desc = self.__source.dump(snapshot_out, self.__tables)
             logger.info("Snapshot taken: %r", snapshot_desc)

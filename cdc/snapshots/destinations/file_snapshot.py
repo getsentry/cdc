@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import jsonschema  # type: ignore
 import logging
 import tempfile
@@ -12,6 +14,21 @@ from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
 logger = LoggerAdapter(logging.getLogger(__name__))
+
+
+class DirectoryDestinationContext(DestinationContext):
+    
+    def __init__(self, directory_name: str) -> None:
+        self.__directory_name = directory_name
+
+    def _open_snapshot_impl(self, snapshot_id: SnapshotId) -> DirectorySnapshot:
+        dir_name = path.join(
+            self.__directory_name,
+            'cdc_snapshot_%s' % snapshot_id,
+        )
+        mkdir(dir_name)
+        logger.debug("Snapshot directory created %s", dir_name)
+        return DirectorySnapshot(snapshot_id, dir_name)
 
 
 class DirectorySnapshot(SnapshotDestination):
@@ -56,20 +73,6 @@ class DirectorySnapshot(SnapshotDestination):
             complete_file_name = path.join(self.__directory_name, "complete")
             with open(complete_file_name, "w"):
                 pass
-
-class DirectoryDestinationContext(DestinationContext):
-    
-    def __init__(self, directory_name: str) -> None:
-        self.__directory_name = directory_name
-
-    def _open_snapshot_impl(self, snapshot_id: SnapshotId) -> DirectorySnapshot:
-        dir_name = path.join(
-            self.__directory_name,
-            'cdc_snapshot_%s' % snapshot_id,
-        )
-        mkdir(dir_name)
-        logger.debug("Snapshot directory created %s", dir_name)
-        return DirectorySnapshot(snapshot_id, dir_name)
 
 
 def directory_dump_factory(
