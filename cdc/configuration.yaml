@@ -26,10 +26,15 @@ source:
                 create: true
 
 snapshot:
+    source:
+        type: postgres
+        options:
+            dsn: 'postgres://postgres@sentry_postgres:5432/sentry'
+
     default_tables:
-        - MY_TABLE
+        - sentry_groupedmessage
     dump:
-        type: file
+        type: directory
         options:
             location: '/tmp/'
 

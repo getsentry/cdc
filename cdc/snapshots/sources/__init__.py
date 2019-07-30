@@ -23,5 +23,5 @@ class SnapshotSource(ABC):
 from cdc.snapshots.sources.postgres_snapshot import postgres_snapshot_factory
 
 registry: Registry[SnapshotSource] = Registry(
-    {"postgres_logical": postgres_snapshot_factory}
+    {"postgres": postgres_snapshot_factory}
 )

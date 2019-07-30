@@ -106,8 +106,8 @@ def snapshot(ctx, tables):
     configuration = ctx.obj
     coordinator = SnapshotCoordinator(
         source_registry.new(
-            configuration["source"]["backend"]["type"],
-            configuration["source"]["backend"]["options"],
+            configuration["snapshot"]["source"]["type"],
+            configuration["snapshot"]["source"]["options"],
         ),
         dest_registry.new(
             configuration["snapshot"]["dump"]["type"],

@@ -76,7 +76,6 @@ def postgres_snapshot_factory(
             "type": "object",
             "properties": {
                 "dsn": {"type": "string"},
-                "slot": {"type": "object"},
             },
             "required": ["dsn"],
         },
