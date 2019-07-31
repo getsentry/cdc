@@ -101,7 +101,7 @@ def consumer(ctx):
 def snapshot(ctx, snapshot_config):
     from cdc.snapshots.snapshot_coordinator import SnapshotCoordinator
     from cdc.snapshots.sources import registry as source_registry
-    from cdc.snapshots.destinations import registry as dest_registry
+    from cdc.snapshots.destinations import registry as destination_registry
     configuration = ctx.obj
     
     snapshot_config = yaml.load(snapshot_config, Loader=yaml.SafeLoader)
@@ -115,7 +115,7 @@ def snapshot(ctx, snapshot_config):
             "properties": {
                 #TODO: make product more restrictive once we have a better idea on how to use it
                 "product": {"type": "string"},
-                "dump": {"type": "object"},
+                "destination": {"type": "object"},
                 "tables": {
                     "type": "array",
                     "items": {
@@ -130,7 +130,7 @@ def snapshot(ctx, snapshot_config):
                     }
                 }
             },
-            "required": ["product", "dump", "tables"],
+            "required": ["product", "destination", "tables"],
         },
     )
 
@@ -139,9 +139,9 @@ def snapshot(ctx, snapshot_config):
             configuration["snapshot"]["source"]["type"],
             configuration["snapshot"]["source"]["options"],
         ),
-        dest_registry.new(
-            snapshot_config["dump"]["type"],
-            snapshot_config["dump"]["options"],
+        destination_registry.new(
+            snapshot_config["destination"]["type"],
+            snapshot_config["destination"]["options"],
         ),
         snapshot_config["product"],
         snapshot_config["tables"],

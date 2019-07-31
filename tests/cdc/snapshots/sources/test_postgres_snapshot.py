@@ -10,31 +10,32 @@ from unittest.mock import MagicMock
 
 from cdc.snapshots.sources.postgres_snapshot import PostgresSnapshot
 from cdc.snapshots.destinations import SnapshotDestination, DumpState
+from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
 from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TablesConfig
 from cdc.testutils.fixtures import dsn
 
-class FakeDestination(SnapshotDestination):
+class FakeDestination(SnapshotDestinationStorage):
     def __init__(self, snapshot_id: SnapshotId) -> None:
-        super(FakeDestination, self).__init__(snapshot_id, 'Snuba')
         self.stream = StringIO()
+        self.id = snapshot_id
 
     def get_name(self) -> str:
         raise NotImplementedError
 
-    def _set_metadata_impl(self,
-        tables: Sequence[str],
+    def set_metadata(self,
+        tables: Sequence[TablesConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
         self.stream.write("META %s %s\n" % (tables, self.id))
 
-    def _get_table_file(self, table_name:str) -> IO[AnyStr]:
+    def get_table_file(self, table_name:str) -> IO[AnyStr]:
         self.stream.write("START %s\n" % table_name)
         return self.stream
 
-    def _table_complete(self, table_file: IO[bytes]) -> None:
+    def table_complete(self, table_file: IO[bytes]) -> None:
         self.stream.write("END TABLE\n")
 
-    def _close_impl(self, state: DumpState) -> None:
+    def close(self, state: DumpState) -> None:
         self.stream.write("SNAPSHOT OVER\n")
 
 def test_snapshot(dsn):
@@ -74,7 +75,8 @@ def test_snapshot(dsn):
 
     snapshot = PostgresSnapshot(dsn)
     snapshot_id = uuid.uuid1()
-    dest = FakeDestination(SnapshotId(str(snapshot_id)))
+    storage = FakeDestination(SnapshotId(str(snapshot_id)))
+    dest = SnapshotDestination(storage)
     tables = [
         TablesConfig(
             table= "test_snapshot",
@@ -104,4 +106,4 @@ def test_snapshot(dsn):
         table="test_snapshot"
     )
 
-    assert dest.stream.getvalue() == expected_output
+    assert storage.stream.getvalue() == expected_output

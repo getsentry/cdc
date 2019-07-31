@@ -8,8 +8,9 @@ from abc import ABC, abstractmethod
 from os import mkdir, path
 from typing import AnyStr, Generator, IO, Optional, Sequence
 
-from cdc.snapshots.destinations import DestinationContext, DumpState, SnapshotDestination
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TablesConfig
+from cdc.snapshots.destinations import DestinationContext, SnapshotDestination
+from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TablesConfig, DumpState
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -25,17 +26,22 @@ class DirectoryDestinationContext(DestinationContext):
         self,
         snapshot_id: SnapshotId,
         product: str,
-    ) -> DirectorySnapshot:
+    ) -> SnapshotDestination:
         dir_name = path.join(
             self.__directory_name,
             'cdc_snapshot_%s_%s' % (product, snapshot_id),
         )
         mkdir(dir_name)
         logger.debug("Snapshot directory created %s", dir_name)
-        return DirectorySnapshot(snapshot_id, product, dir_name)
+        snapshot_storage = DirectorySnapshot(
+            snapshot_id,
+            product,
+            dir_name,
+        )
+        return SnapshotDestination(snapshot_storage)
 
 
-class DirectorySnapshot(SnapshotDestination):
+class DirectorySnapshot(SnapshotDestinationStorage):
     """
     Snapshot based on directories.
 
@@ -46,13 +52,14 @@ class DirectorySnapshot(SnapshotDestination):
     """
 
     def __init__(self, snapshot_id: SnapshotId, product:str, directory_name: str) -> None:
-        super(DirectorySnapshot, self).__init__(snapshot_id, product)
+        self.id = snapshot_id
+        self.product = product
         self.__directory_name = directory_name
 
     def get_name(self) -> str:
         return  self.__directory_name
 
-    def _set_metadata_impl(self,
+    def set_metadata(self,
         tables: Sequence[TablesConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
@@ -68,24 +75,24 @@ class DirectorySnapshot(SnapshotDestination):
                     ','.join(table['columns']),
                 ))
     
-    def _get_table_file(self, table_name:str) -> IO[bytes]:
+    def get_table_file(self, table_name:str) -> IO[bytes]:
         file_name = path.join(
             self.__directory_name,
             "table_%s" % table_name,
         )
         return open(file_name, "wb")
 
-    def _table_complete(self, table_file: IO[bytes]) -> None:
+    def table_complete(self, table_file: IO[bytes]) -> None:
         table_file.close()
 
-    def _close_impl(self, state: DumpState) -> None:
+    def close(self, state: DumpState) -> None:
         if state != DumpState.ERROR:
             complete_file_name = path.join(self.__directory_name, "complete")
             with open(complete_file_name, "w"):
                 pass
 
 
-def directory_dump_factory(
+def directory_destination_factory(
     configuration: Configuration
 ) -> DirectoryDestinationContext:
     jsonschema.validate(

@@ -2,7 +2,7 @@ version: 1
 
 product: Snuba
 
-dump:
+destination:
     type: directory
     options:
         location: '/tmp/'
