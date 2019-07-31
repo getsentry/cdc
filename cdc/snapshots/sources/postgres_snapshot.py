@@ -3,14 +3,14 @@ from psycopg2 import ( # type: ignore
     connect,
     sql,
 )
-from typing import Any, AnyStr, IO, Mapping, Sequence
+from typing import Any, AnyStr, cast, IO, Mapping, Sequence
 
 import jsonschema  # type: ignore
 import logging
 import uuid
 
 from cdc.snapshots.sources import SnapshotSource
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, TablesConfig
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, TablesConfig, Xid
 from cdc.snapshots.destinations import SnapshotDestination
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
@@ -36,9 +36,9 @@ class PostgresSnapshot(SnapshotSource):
             xmin, xmax, xip_list = current_snapshot[0].split(':')
 
             snapshot_descriptor = SnapshotDescriptor(
-                xmin,
-                xmax,
-                xip_list,
+                Xid(xmin),
+                Xid(xmax),
+                cast(Sequence[Xid], xip_list),
             )
             
             logger.debug('Snapshot exported %r.', snapshot_descriptor)
