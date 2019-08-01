@@ -19,7 +19,7 @@ source:
     backend:
         type: postgres_logical
         options:
-            dsn: 'postgres://postgres@localhost:5432/pgbench'
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
             slot:
                 name: 'pgbench'
                 plugin: 'test_decoding'
@@ -29,7 +29,7 @@ snapshot:
     source:
         type: postgres
         options:
-            dsn: 'postgres://postgres@localhost:5432/pgbench'
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
 
 producer:
     backend:
