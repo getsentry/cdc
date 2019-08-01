@@ -39,11 +39,10 @@ class PostgresSnapshot(SnapshotSource):
             cursor.execute("SELECT txid_current_snapshot()")
             current_snapshot = cursor.fetchone()
             xmin, xmax, xip_list = current_snapshot[0].split(':')
-
-            xip_list = [Xid(xid) for xid in xip_list.split(',')]
+            xip_list = [Xid(int(xid)) for xid in xip_list.split(',') if xid]
             snapshot_descriptor = SnapshotDescriptor(
-                Xid(xmin),
-                Xid(xmax),
+                Xid(int(xmin)),
+                Xid(int(xmax)),
                 xip_list,
             )
             

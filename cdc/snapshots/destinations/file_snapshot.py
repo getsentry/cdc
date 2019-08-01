@@ -96,12 +96,12 @@ class DirectorySnapshot(SnapshotDestinationStorage):
         extensions = {
             TableDumpFormat.CSV: 'csv',
             TableDumpFormat.BINARY: 'bin',
-            TableDumpFormat.TEXT: '.txt',
+            TableDumpFormat.TEXT: 'txt',
         }
         
         file_name = path.join(
             self.__tables_dir,
-            "table_%s.%s" % (table_name, extensions[dump_format])
+            "%s.%s" % (table_name, extensions[dump_format])
         )
         with open(file_name, "wb") as table_file:
             yield table_file
