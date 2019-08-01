@@ -6,7 +6,7 @@ import logging
 import tempfile
 
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 from dataclasses import asdict
 from datetime import datetime
 from os import mkdir, path
@@ -84,15 +84,12 @@ class DirectorySnapshot(SnapshotDestinationStorage):
         self,
         table_name:str,
     )-> Generator[IO[bytes], None, None]:
-        try:
-            file_name = path.join(
-                self.__directory_name,
-                "table_%s" % table_name,
-            )
-            table_file = open(file_name, "wb")
+        file_name = path.join(
+            self.__directory_name,
+            "table_%s" % table_name,
+        )
+        with open(file_name, "wb") as table_file:
             yield table_file
-        finally:
-            table_file.close()
 
     def close(self, state: DumpState) -> None:
         if state != DumpState.ERROR:

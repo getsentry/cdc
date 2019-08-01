@@ -19,8 +19,7 @@ class SnapshotDescriptor:
 @dataclass(frozen=True)
 class TableConfig:
     """
-    Represents the snapshot configuration for
-    a table.
+    Represents the snapshot configuration for a table.
     """
     table: str
     columns: Optional[Sequence[str]]
