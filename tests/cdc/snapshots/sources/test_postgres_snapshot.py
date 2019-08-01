@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from cdc.snapshots.sources.postgres_snapshot import PostgresSnapshot
 from cdc.snapshots.destinations import SnapshotDestination, DumpState
 from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TableConfig
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TableConfig, TableDumpFormat
 from cdc.testutils.fixtures import dsn
 
 class FakeDestination(SnapshotDestinationStorage):
@@ -32,6 +32,7 @@ class FakeDestination(SnapshotDestinationStorage):
     def get_table_file(
         self,
         table_name:str,
+        dump_format: TableDumpFormat,
     ) -> Generator[IO[bytes], None, None]:
         self.stream.write("START %s\n" % table_name)
         yield self.stream

@@ -7,6 +7,7 @@ from cdc.snapshots.snapshot_types import (
     SnapshotDescriptor,
     SnapshotId,
     TableConfig,
+    TableDumpFormat,
     DumpState,
 )
 
@@ -33,6 +34,7 @@ class SnapshotDestinationStorage(ABC):
     def get_table_file(
         self,
         table_name:str,
+        dump_format: TableDumpFormat,
     ) -> Generator[IO[bytes], None, None]:
         """
         Returns the open file we will use to dump the table

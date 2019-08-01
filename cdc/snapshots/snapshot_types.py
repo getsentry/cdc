@@ -30,3 +30,8 @@ class DumpState(Enum):
     WRITE_TABLE = 3
     CLOSE = 4
     ERROR = 5
+
+class TableDumpFormat(Enum):
+    BINARY = 1
+    TEXT = 2
+    CSV = 3

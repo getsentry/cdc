@@ -10,7 +10,12 @@ import logging
 import uuid
 
 from cdc.snapshots.sources import SnapshotSource
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, TableConfig, Xid
+from cdc.snapshots.snapshot_types import(
+    SnapshotDescriptor,
+    TableConfig,
+    TableDumpFormat,
+    Xid,
+) 
 from cdc.snapshots.destinations import SnapshotDestination
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
@@ -51,19 +56,18 @@ class PostgresSnapshot(SnapshotSource):
 
             for table in tables:
                 table_name = table.table
-                columns = table.columns or None
-                with output.open_table(table_name) as table_file:
+                with output.open_table(table_name, TableDumpFormat.CSV) as table_file:
                     logger.debug(
                         'Dumping table %s, using snapshot: %r...',
                         table,
                         snapshot_descriptor,
                     )
                     
-                    if not columns:
+                    if not table.columns:
                         cols_expr = sql.SQL('*')
                     else:
                         cols_expr = sql.SQL(', ').join(
-                            [sql.Identifier(column) for column in columns]
+                            [sql.Identifier(column) for column in table.columns]
                         )
 
                     cursor.copy_expert(

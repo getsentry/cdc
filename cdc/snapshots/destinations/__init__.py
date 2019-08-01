@@ -11,6 +11,7 @@ from cdc.snapshots.snapshot_types import (
     SnapshotDescriptor,
     SnapshotId,
     TableConfig,
+    TableDumpFormat,
     DumpState,
 )
 from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
@@ -84,7 +85,11 @@ class SnapshotDestination:
         self.__state = DumpState.WAIT_TABLE
 
     @contextmanager
-    def open_table(self, table_name:str) -> Generator[IO[bytes], None, None] :
+    def open_table(
+        self,
+        table_name:str,
+        dump_format: TableDumpFormat,
+    ) -> Generator[IO[bytes], None, None] :
         """
         Call this to provide the table schema and start the dump
         of one table
@@ -93,7 +98,7 @@ class SnapshotDestination:
             "Cannot write table header in the current state %s" % self.__state
         try:
             self.__state = DumpState.WRITE_TABLE
-            with self.__storage.get_table_file(table_name) as table_file:
+            with self.__storage.get_table_file(table_name, dump_format) as table_file:
                 logger.debug("Opening table file for %s", table_name)
                 yield table_file
                 self.__state = DumpState.WAIT_TABLE

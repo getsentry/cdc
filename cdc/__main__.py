@@ -128,7 +128,8 @@ def snapshot(ctx, snapshot_config):
                                 "type": "array",
                                 "items": {"type": "string"},
                             }
-                        }
+                        },
+                        "required": ["table"],
                     }
                 }
             },
@@ -137,7 +138,7 @@ def snapshot(ctx, snapshot_config):
     )
 
     tables_config = [
-        TableConfig(t['table'], t['columns'])
+        TableConfig(t['table'], t.get('columns'))
         for t in snapshot_config['tables']
     ]
 

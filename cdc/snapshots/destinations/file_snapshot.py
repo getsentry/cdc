@@ -14,7 +14,13 @@ from typing import AnyStr, Generator, IO, Optional, Sequence
 
 from cdc.snapshots.destinations import DestinationContext, SnapshotDestination
 from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TableConfig, DumpState
+from cdc.snapshots.snapshot_types import (
+    SnapshotDescriptor,
+    SnapshotId,
+    TableConfig,
+    TableDumpFormat,
+    DumpState,
+)
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -58,6 +64,7 @@ class DirectorySnapshot(SnapshotDestinationStorage):
         self.id = snapshot_id
         self.product = product
         self.__directory_name = directory_name
+        self.__tables_dir = path.join(self.__directory_name, "tables")
 
     def get_name(self) -> str:
         return  self.__directory_name
@@ -66,7 +73,8 @@ class DirectorySnapshot(SnapshotDestinationStorage):
         tables: Sequence[TableConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
-        meta_file_name = path.join(self.__directory_name, "metadata.txt")
+        mkdir(self.__tables_dir)
+        meta_file_name = path.join(self.__directory_name, "metadata.json")
         now = datetime.now()
         timestamp = datetime.timestamp(now)
         meta_content = {
@@ -82,18 +90,25 @@ class DirectorySnapshot(SnapshotDestinationStorage):
     @contextmanager
     def get_table_file(
         self,
-        table_name:str,
+        table_name: str,
+        dump_format: TableDumpFormat,
     )-> Generator[IO[bytes], None, None]:
+        extensions = {
+            TableDumpFormat.CSV: 'csv',
+            TableDumpFormat.BINARY: 'bin',
+            TableDumpFormat.TEXT: '.txt',
+        }
+        
         file_name = path.join(
-            self.__directory_name,
-            "table_%s" % table_name,
+            self.__tables_dir,
+            "table_%s.%s" % (table_name, extensions[dump_format])
         )
         with open(file_name, "wb") as table_file:
             yield table_file
 
     def close(self, state: DumpState) -> None:
         if state != DumpState.ERROR:
-            complete_file_name = path.join(self.__directory_name, "complete")
+            complete_file_name = path.join(self.__directory_name, "complete.json")
             with open(complete_file_name, "w") as complete_file:
                 now = datetime.now()
                 timestamp = datetime.timestamp(now)
