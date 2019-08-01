@@ -10,6 +10,8 @@ from typing import Any
 from pkg_resources import cleanup_resources, resource_filename
 from sentry_sdk.integrations.logging import LoggingIntegration
 
+from cdc.snapshots.snapshot_types import TableConfig
+
 atexit.register(cleanup_resources)
 
 
@@ -134,6 +136,11 @@ def snapshot(ctx, snapshot_config):
         },
     )
 
+    tables_config = [
+        TableConfig(t['table'], t['columns'])
+        for t in snapshot_config['tables']
+    ]
+
     coordinator = SnapshotCoordinator(
         source_registry.new(
             configuration["snapshot"]["source"]["type"],
@@ -144,7 +151,7 @@ def snapshot(ctx, snapshot_config):
             snapshot_config["destination"]["options"],
         ),
         snapshot_config["product"],
-        snapshot_config["tables"],
+        tables_config,
     )
 
     coordinator.start_process()

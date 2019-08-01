@@ -10,7 +10,7 @@ import logging
 import uuid
 
 from cdc.snapshots.sources import SnapshotSource
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, TablesConfig, Xid
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, TableConfig, Xid
 from cdc.snapshots.destinations import SnapshotDestination
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
@@ -24,7 +24,7 @@ class PostgresSnapshot(SnapshotSource):
     def dump(
         self,
         output: SnapshotDestination,
-        tables: Sequence[TablesConfig],
+        tables: Sequence[TableConfig],
     ) -> SnapshotDescriptor:        
         logger.debug("Establishing replication connection to %r...", self.__dsn)
         with connect(self.__dsn).cursor() as cursor:
@@ -35,27 +35,27 @@ class PostgresSnapshot(SnapshotSource):
             current_snapshot = cursor.fetchone()
             xmin, xmax, xip_list = current_snapshot[0].split(':')
 
+            xip_list = [Xid(xid) for xid in xip_list.split(',')]
             snapshot_descriptor = SnapshotDescriptor(
                 Xid(xmin),
                 Xid(xmax),
-                cast(Sequence[Xid], xip_list),
+                xip_list,
             )
             
             logger.debug('Snapshot exported %r.', snapshot_descriptor)
 
-            output.set_metadata(
+            output.write_metadata(
                 tables=tables,
                 snapshot=snapshot_descriptor
             )
 
             for table in tables:
-                table_name = table['table']
-                columns = table['columns'] or None
+                table_name = table.table
+                columns = table.columns or None
                 with output.open_table(table_name) as table_file:
                     logger.debug(
-                        'Dumping table %s. Columns %r, using snapshot: %r...',
-                        table_name,
-                        columns,
+                        'Dumping table %s, using snapshot: %r...',
+                        table,
                         snapshot_descriptor,
                     )
                     

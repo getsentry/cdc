@@ -4,7 +4,7 @@ from typing import Any, AnyStr, IO, Mapping, Sequence
 
 from cdc.utils.registry import Registry
 from cdc.snapshots.destinations import SnapshotDestination
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, TablesConfig
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, TableConfig
 
 class SnapshotSource(ABC):
     """
@@ -15,7 +15,7 @@ class SnapshotSource(ABC):
     @abstractmethod
     def dump(self,
         output: SnapshotDestination,
-        tables: Sequence[TablesConfig],
+        tables: Sequence[TableConfig],
     ) -> SnapshotDescriptor:
         raise NotImplementedError
 

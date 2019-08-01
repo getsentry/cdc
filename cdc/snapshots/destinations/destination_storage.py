@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 
+from contextlib import contextmanager
 from typing import Generator, IO, Sequence, Optional
 
 from cdc.snapshots.snapshot_types import (
     SnapshotDescriptor,
     SnapshotId,
-    TablesConfig,
+    TableConfig,
     DumpState,
 )
 
@@ -21,23 +22,20 @@ class SnapshotDestinationStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_metadata(self,
-        tables: Sequence[TablesConfig],
+    def write_metadata(self,
+        tables: Sequence[TableConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
         raise NotImplementedError            
 
     @abstractmethod
-    def get_table_file(self, table_name:str) -> IO[bytes]:
+    @contextmanager
+    def get_table_file(
+        self,
+        table_name:str,
+    ) -> Generator[IO[bytes], None, None]:
         """
         Returns the open file we will use to dump the table
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def table_complete(self, table_file: IO[bytes]) -> None:
-        """
-        Signals we are done with this table
         """
         raise NotImplementedError
 

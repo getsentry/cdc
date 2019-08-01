@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from mypy_extensions import TypedDict
-from typing import NewType, Sequence
+from typing import NewType, Optional, Sequence
 
 Xid = NewType("Xid", int)
 
@@ -17,13 +16,18 @@ class SnapshotDescriptor:
     xmax: Xid
     xip_list: Sequence[Xid]
 
-TablesConfig = TypedDict(
-    'TablesConfig',
-    {'table': str, 'columns': Sequence[str]}
-)
+@dataclass(frozen=True)
+class TableConfig:
+    """
+    Represents the snapshot configuration for
+    a table.
+    """
+    table: str
+    columns: Optional[Sequence[str]]
 
 class DumpState(Enum):
     WAIT_METADATA = 1
     WAIT_TABLE = 2
     WRITE_TABLE = 3
-    ERROR = 4
+    CLOSE = 4
+    ERROR = 5

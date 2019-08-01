@@ -4,14 +4,14 @@ import uuid
 
 from io import StringIO
 
-from contextlib import closing
-from typing import AnyStr, IO, Sequence
+from contextlib import closing, contextmanager
+from typing import AnyStr, Generator, IO, Sequence
 from unittest.mock import MagicMock
 
 from cdc.snapshots.sources.postgres_snapshot import PostgresSnapshot
 from cdc.snapshots.destinations import SnapshotDestination, DumpState
 from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TablesConfig
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TableConfig
 from cdc.testutils.fixtures import dsn
 
 class FakeDestination(SnapshotDestinationStorage):
@@ -22,17 +22,19 @@ class FakeDestination(SnapshotDestinationStorage):
     def get_name(self) -> str:
         raise NotImplementedError
 
-    def set_metadata(self,
-        tables: Sequence[TablesConfig],
+    def write_metadata(self,
+        tables: Sequence[TableConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
         self.stream.write("META %s %s\n" % (tables, self.id))
 
-    def get_table_file(self, table_name:str) -> IO[AnyStr]:
+    @contextmanager
+    def get_table_file(
+        self,
+        table_name:str,
+    ) -> Generator[IO[bytes], None, None]:
         self.stream.write("START %s\n" % table_name)
-        return self.stream
-
-    def table_complete(self, table_file: IO[bytes]) -> None:
+        yield self.stream
         self.stream.write("END TABLE\n")
 
     def close(self, state: DumpState) -> None:
@@ -78,7 +80,7 @@ def test_snapshot(dsn):
     storage = FakeDestination(SnapshotId(str(snapshot_id)))
     dest = SnapshotDestination(storage)
     tables = [
-        TablesConfig(
+        TableConfig(
             table= "test_snapshot",
             columns= ["a", "b", "c"],
         )

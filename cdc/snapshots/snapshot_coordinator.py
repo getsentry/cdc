@@ -7,7 +7,7 @@ from typing import Any, AnyStr, IO, Mapping, Sequence
 
 from cdc.snapshots.destinations import DestinationContext
 from cdc.snapshots.sources import SnapshotSource
-from cdc.snapshots.snapshot_types import SnapshotId, TablesConfig
+from cdc.snapshots.snapshot_types import SnapshotId, TableConfig
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -28,7 +28,7 @@ class SnapshotCoordinator(ABC):
         source: SnapshotSource,
         destination: DestinationContext,
         product: str,
-        tables: Sequence[TablesConfig]) -> None:
+        tables: Sequence[TableConfig]) -> None:
         self.__source = source
         self.__destination = destination
         self.__product = product
@@ -40,7 +40,7 @@ class SnapshotCoordinator(ABC):
         snapshot_id = uuid.uuid1()
         logger.info("Starting snapshot ID %s", snapshot_id)
         # TODO: pause consumer
-        with self.__destination.open_snapshot(
+        with self.__destination.open(
             SnapshotId(str(snapshot_id)),
             self.__product) as snapshot_out:
             

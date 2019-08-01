@@ -10,7 +10,7 @@ from contextlib import contextmanager, closing
 from cdc.snapshots.snapshot_types import (
     SnapshotDescriptor,
     SnapshotId,
-    TablesConfig,
+    TableConfig,
     DumpState,
 )
 from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
@@ -27,7 +27,7 @@ class DestinationContext(ABC):
     """
     
     @contextmanager
-    def open_snapshot(
+    def open(
         self,
         snapshot_id: SnapshotId,
         product: str,
@@ -36,15 +36,17 @@ class DestinationContext(ABC):
         Represents the snapshot context. This method handles the initialization
         of the snapshot and produces a SnapshotDestination object.
         """
-        with closing(self._open_snapshot_impl(snapshot_id, product)) as snapshot:
-            yield snapshot
+        storage = self._open_storage(snapshot_id, product)
+        with closing(SnapshotDestination(storage)) as destination:
+            yield destination
+
 
     @abstractmethod
-    def _open_snapshot_impl(
+    def _open_storage(
         self,
         snapshot_id: SnapshotId,
         product: str,
-    ) -> SnapshotDestination:
+    ) -> SnapshotDestinationStorage:
         """
         Initializes the SnapshotDestination object.
         """
@@ -68,8 +70,8 @@ class SnapshotDestination:
     def get_name(self) -> str:
         return self.__storage.get_name()
 
-    def set_metadata(self,
-        tables: Sequence[TablesConfig],
+    def write_metadata(self,
+        tables: Sequence[TableConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
         """
@@ -78,7 +80,7 @@ class SnapshotDestination:
         """
         assert self.__state == DumpState.WAIT_METADATA, \
             "Cannot write metadata in the current state: %s" % self.__state
-        self.__storage.set_metadata(tables, snapshot)
+        self.__storage.write_metadata(tables, snapshot)
         self.__state = DumpState.WAIT_TABLE
 
     @contextmanager
@@ -91,22 +93,22 @@ class SnapshotDestination:
             "Cannot write table header in the current state %s" % self.__state
         try:
             self.__state = DumpState.WRITE_TABLE
-            table_file = self.__storage.get_table_file(table_name)
-            logger.debug("Opening table file for %s", table_name)
-            yield table_file
+            with self.__storage.get_table_file(table_name) as table_file:
+                logger.debug("Opening table file for %s", table_name)
+                yield table_file
+                self.__state = DumpState.WAIT_TABLE
         except:
             self.__state = DumpState.ERROR
             raise
-        else:
-            self.__state = DumpState.WAIT_TABLE
-        finally:
-            self.__storage.table_complete(table_file)
             
     def close(self) -> None:
         """
         Closes the snapshot. This is called by the context manager.
         """
+        assert self.__state == DumpState.WAIT_TABLE, \
+            "Cannot close a snapshot in the current state: %s" % self.__state
         self.__storage.close(self.__state)
+        self.__state = DumpState.CLOSE
 
 
 from cdc.snapshots.destinations.file_snapshot import directory_destination_factory

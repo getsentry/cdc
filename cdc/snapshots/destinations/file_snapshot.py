@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import jsonschema  # type: ignore
+import json
 import logging
 import tempfile
 
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from dataclasses import asdict
+from datetime import datetime
 from os import mkdir, path
 from typing import AnyStr, Generator, IO, Optional, Sequence
 
 from cdc.snapshots.destinations import DestinationContext, SnapshotDestination
 from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TablesConfig, DumpState
+from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TableConfig, DumpState
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -22,23 +26,22 @@ class DirectoryDestinationContext(DestinationContext):
     def __init__(self, directory_name: str) -> None:
         self.__directory_name = directory_name
 
-    def _open_snapshot_impl(
+    def _open_storage(
         self,
         snapshot_id: SnapshotId,
         product: str,
-    ) -> SnapshotDestination:
+    ) -> SnapshotDestinationStorage:
         dir_name = path.join(
             self.__directory_name,
             'cdc_snapshot_%s_%s' % (product, snapshot_id),
         )
         mkdir(dir_name)
         logger.debug("Snapshot directory created %s", dir_name)
-        snapshot_storage = DirectorySnapshot(
+        return DirectorySnapshot(
             snapshot_id,
             product,
             dir_name,
         )
-        return SnapshotDestination(snapshot_storage)
 
 
 class DirectorySnapshot(SnapshotDestinationStorage):
@@ -59,37 +62,48 @@ class DirectorySnapshot(SnapshotDestinationStorage):
     def get_name(self) -> str:
         return  self.__directory_name
 
-    def set_metadata(self,
-        tables: Sequence[TablesConfig],
+    def write_metadata(self,
+        tables: Sequence[TableConfig],
         snapshot: SnapshotDescriptor,
     ) -> None:
         meta_file_name = path.join(self.__directory_name, "metadata.txt")
+        now = datetime.now()
+        timestamp = datetime.timestamp(now)
+        meta_content = {
+            "snapshot_id": self.id,
+            "product": self.product,
+            "transactions": asdict(snapshot),
+            "content": [asdict(t) for t in tables],
+            "start_timestamp": timestamp,
+        }
         with open(meta_file_name, "w") as meta_file:
-            meta_file.write("CDC Snapshot: %r \n" % self.id)
-            meta_file.write("Product: %s \n" % self.product)
-            meta_file.write("Transactions: %r \n" % snapshot)
-            meta_file.write("Tables:\n")
-            for table in tables:
-                meta_file.write("-%s - %s\n" % (
-                    table['table'],
-                    ','.join(table['columns']),
-                ))
+            json.dump(meta_content, meta_file)
     
-    def get_table_file(self, table_name:str) -> IO[bytes]:
-        file_name = path.join(
-            self.__directory_name,
-            "table_%s" % table_name,
-        )
-        return open(file_name, "wb")
-
-    def table_complete(self, table_file: IO[bytes]) -> None:
-        table_file.close()
+    @contextmanager
+    def get_table_file(
+        self,
+        table_name:str,
+    )-> Generator[IO[bytes], None, None]:
+        try:
+            file_name = path.join(
+                self.__directory_name,
+                "table_%s" % table_name,
+            )
+            table_file = open(file_name, "wb")
+            yield table_file
+        finally:
+            table_file.close()
 
     def close(self, state: DumpState) -> None:
         if state != DumpState.ERROR:
             complete_file_name = path.join(self.__directory_name, "complete")
-            with open(complete_file_name, "w"):
-                pass
+            with open(complete_file_name, "w") as complete_file:
+                now = datetime.now()
+                timestamp = datetime.timestamp(now)
+                json.dump(
+                    {"finish_timestamp": timestamp},
+                    complete_file,
+                )
 
 
 def directory_destination_factory(
