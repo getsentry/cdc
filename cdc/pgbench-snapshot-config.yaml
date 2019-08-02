@@ -1,0 +1,14 @@
+version: 1
+
+product: pgbench
+
+destination:
+    type: directory
+    options:
+        location: '/tmp/'
+
+tables:
+    -   table: pgbench_accounts
+        columns:
+            - aid
+            - abalance

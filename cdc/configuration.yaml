@@ -25,6 +25,12 @@ source:
                 plugin: 'test_decoding'
                 create: true
 
+snapshot:
+    source:
+        type: postgres
+        options:
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
+
 producer:
     backend:
         type: kafka

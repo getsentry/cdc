@@ -1,5 +1,6 @@
 import atexit
 import click
+import jsonschema  # type: ignore
 import logging, logging.config
 import signal
 import yaml
@@ -8,6 +9,8 @@ import sentry_sdk
 from typing import Any
 from pkg_resources import cleanup_resources, resource_filename
 from sentry_sdk.integrations.logging import LoggingIntegration
+
+from cdc.snapshots.snapshot_types import TableConfig
 
 atexit.register(cleanup_resources)
 
@@ -85,6 +88,74 @@ def producer(ctx):
 @click.pass_context
 def consumer(ctx):
     raise NotImplementedError
+
+
+@main.command(
+    help="Takes a snapshot and coordinate the process to load it in Clickhouse"
+)
+@click.option(
+    "-s",
+    "--snapshot-config",
+    type=click.File("r"),
+    help="Path to the snapshot configuration file.",
+)
+@click.pass_context
+def snapshot(ctx, snapshot_config):
+    from cdc.snapshots.snapshot_coordinator import SnapshotCoordinator
+    from cdc.snapshots.sources import registry as source_registry
+    from cdc.snapshots.destinations import registry as destination_registry
+    configuration = ctx.obj
+    
+    snapshot_config = yaml.load(snapshot_config, Loader=yaml.SafeLoader)
+    if configuration["version"] != 1:
+        raise Exception("Invalid snapshot configuration file version")
+
+    jsonschema.validate(
+        snapshot_config,
+        {
+            "type": "object",
+            "properties": {
+                #TODO: make product more restrictive once we have a better idea on how to use it
+                "product": {"type": "string"},
+                "destination": {"type": "object"},
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "table": {"type": "string"},
+                            "columns": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            }
+                        },
+                        "required": ["table"],
+                    }
+                }
+            },
+            "required": ["product", "destination", "tables"],
+        },
+    )
+
+    tables_config = [
+        TableConfig(t['table'], t.get('columns'))
+        for t in snapshot_config['tables']
+    ]
+
+    coordinator = SnapshotCoordinator(
+        source_registry.new(
+            configuration["snapshot"]["source"]["type"],
+            configuration["snapshot"]["source"]["options"],
+        ),
+        destination_registry.new(
+            snapshot_config["destination"]["type"],
+            snapshot_config["destination"]["options"],
+        ),
+        snapshot_config["product"],
+        tables_config,
+    )
+
+    coordinator.start_process()
 
 
 if __name__ == "__main__":
