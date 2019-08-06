@@ -79,6 +79,7 @@ def producer(ctx):
         producer.stop()
 
     signal.signal(signal.SIGINT, handle_interrupt)
+    signal.signal(signal.SIGTERM, handle_interrupt)
     producer.run()
 
 
