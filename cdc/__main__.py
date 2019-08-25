@@ -154,7 +154,10 @@ def snapshot(ctx, snapshot_config):
             snapshot_config["destination"]["type"],
             snapshot_config["destination"]["options"],
         ),
-        SnapshotControl(producer_factory(configuration["snapshot"]["producer"])),
+        SnapshotControl(
+            producer_factory(configuration["snapshot"]["producer"]),
+            configuration["snapshot"]["producer"]["poll_timeout"],
+        ),
         snapshot_config["product"],
         tables_config,
     )

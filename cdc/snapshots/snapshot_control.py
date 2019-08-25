@@ -10,13 +10,16 @@ from cdc.snapshots.control_protocol import (
     SnapshotInit,
 )
 from cdc.snapshots.snapshot_types import SnapshotId, TableConfig
-from cdc.sources.types import Message
+from cdc.sources.types import Message, Payload
 from cdc.streams import Producer as StreamProducer
 from cdc.utils.logging import LoggerAdapter
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
 class SnapshotControl:
+    """
+    Sends messages on the CDC control topic.
+    """
 
     def __init__(
         self,
@@ -35,10 +38,10 @@ class SnapshotControl:
             msg,
         )
 
-
     def __write_msg(self, message: ControlMessage) -> None:
+        json_string = json.dumps(message.serialize())
         self.__producer.write(
-            payload=json.dumps(message.serialize()),
+            payload=Payload(json_string.encode()),
             callback=partial(self.__msg_sent, message)
         )
 

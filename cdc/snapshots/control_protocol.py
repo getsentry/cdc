@@ -15,7 +15,7 @@ class ControlMessage(ABC):
 
 
 @dataclass(frozen=True)
-class SnapshotInit:
+class SnapshotInit(ControlMessage):
     snapshot_id: SnapshotId
     product: str
 
@@ -27,7 +27,7 @@ class SnapshotInit:
         }
 
 @dataclass(frozen=True)
-class SnapshotAbort:
+class SnapshotAbort(ControlMessage):
     snapshot_id: SnapshotId
 
     def serialize(self) -> Mapping[str, Any]:
@@ -37,7 +37,7 @@ class SnapshotAbort:
         }
 
 @dataclass(frozen=True)
-class SnapshotLoaded:
+class SnapshotLoaded(ControlMessage):
     snapshot_id: SnapshotId
     datasets: Mapping[str, Mapping[str, Any]]
     transaction_info: SnapshotDescriptor
