@@ -30,6 +30,14 @@ snapshot:
         type: postgres
         options:
             dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
+    producer:
+        poll_timeout: 10
+        backend:
+            type: kafka
+            options:
+                topic: control_topic
+                options:
+                    bootstrap.servers: 'sentry_kafka:9093'
 
 producer:
     backend:
