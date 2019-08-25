@@ -1,5 +1,5 @@
 import json # type: ignore
-import uuid
+from uuid import uuid1
 
 from typing import Callable, List
 
@@ -24,7 +24,7 @@ class DummyProducer(StreamProducer):
 
 class TestSnapshotControl:
     def test_init(self) -> None:
-        uuid = uuid.uuid1()
+        uuid = uuid1()
         producer = DummyProducer()
         control = SnapshotControl(producer, 0)
         control.init_snapshot(
@@ -34,6 +34,7 @@ class TestSnapshotControl:
 
         reloaded = json.loads(producer.items[0])
         assert reloaded == {
-            "snapshot_id": str(uuid),
-            "product": "snuba"
+            "snapshot-id": str(uuid),
+            "product": "snuba",
+            "event": "snapshot-init"
         }
