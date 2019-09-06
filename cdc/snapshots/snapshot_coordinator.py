@@ -5,9 +5,9 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Any, AnyStr, IO, Mapping, Sequence
 
-from cdc.snapshots.snapshot_control import SnapshotControl
 from cdc.snapshots.destinations import DestinationContext
 from cdc.snapshots.sources import SnapshotSource
+from cdc.snapshots.snapshot_control import SnapshotControl
 from cdc.snapshots.snapshot_types import SnapshotId, TableConfig
 from cdc.streams import Producer as StreamProducer
 from cdc.utils.logging import LoggerAdapter
@@ -43,8 +43,10 @@ class SnapshotCoordinator(ABC):
         logger.debug("Starting snapshot process for product %s", self.__product)
         snapshot_id = uuid.uuid1()
         logger.info("Starting snapshot ID %s", snapshot_id)
+        table_names = [t.table for t in self.__tables]
         self.__control.init_snapshot(
             snapshot_id=snapshot_id,
+            tables=table_names,
             product=self.__product,
         )
         with self.__destination.open(

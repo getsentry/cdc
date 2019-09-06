@@ -2,6 +2,7 @@ import json # type: ignore
 import logging
 
 from functools import partial
+from typing import Sequence
 from uuid import UUID
 
 from cdc.snapshots.control_protocol import (
@@ -39,14 +40,19 @@ class SnapshotControl:
         )
 
     def __write_msg(self, message: ControlMessage) -> None:
-        json_string = json.dumps(message.serialize())
+        json_string = json.dumps(message.to_dict())
         self.__producer.write(
-            payload=Payload(json_string.encode()),
+            payload=Payload(json_string.encode("utf-8")),
             callback=partial(self.__msg_sent, message)
         )
 
-    def init_snapshot(self, snapshot_id: UUID, product: str) -> None:
+    def init_snapshot(self,
+        snapshot_id: UUID,
+        tables: Sequence[str],
+        product: str,
+    ) -> None:
         init_message = SnapshotInit(
+            tables=tables,
             snapshot_id=SnapshotId(str(snapshot_id)),
             product=product,
         )

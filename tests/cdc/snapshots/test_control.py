@@ -29,6 +29,7 @@ class TestSnapshotControl:
         control = SnapshotControl(producer, 0)
         control.init_snapshot(
             snapshot_id=uuid,
+            tables=["my_table"],
             product="snuba"
         )
 
@@ -36,5 +37,6 @@ class TestSnapshotControl:
         assert reloaded == {
             "snapshot-id": str(uuid),
             "product": "snuba",
+            "tables": ["my_table"],
             "event": "snapshot-init"
         }

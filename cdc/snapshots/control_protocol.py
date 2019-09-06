@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from cdc.snapshots.snapshot_types import (
     Xid,
@@ -10,7 +10,7 @@ from cdc.snapshots.snapshot_types import (
 
 class ControlMessage(ABC):
     @abstractmethod
-    def serialize(self) -> Mapping[str, Any]:
+    def to_dict(self) -> Mapping[str, Any]:
         raise NotImplementedError
 
 
@@ -18,10 +18,12 @@ class ControlMessage(ABC):
 class SnapshotInit(ControlMessage):
     snapshot_id: SnapshotId
     product: str
+    tables: Sequence[str]
 
-    def serialize(self) -> Mapping[str, Any]:
+    def to_dict(self) -> Mapping[str, Any]:
         return {
             "event": "snapshot-init",
+            "tables": self.tables,
             "snapshot-id": self.snapshot_id,
             "product": self.product
         }
@@ -30,7 +32,7 @@ class SnapshotInit(ControlMessage):
 class SnapshotAbort(ControlMessage):
     snapshot_id: SnapshotId
 
-    def serialize(self) -> Mapping[str, Any]:
+    def to_dict(self) -> Mapping[str, Any]:
         return {
             "event": "snapshot-abort",
             "snapshot-id": self.snapshot_id,
@@ -39,13 +41,11 @@ class SnapshotAbort(ControlMessage):
 @dataclass(frozen=True)
 class SnapshotLoaded(ControlMessage):
     snapshot_id: SnapshotId
-    datasets: Mapping[str, Mapping[str, Any]]
     transaction_info: SnapshotDescriptor
 
-    def serialize(self) -> Mapping[str, Any]:
+    def to_dict(self) -> Mapping[str, Any]:
         return {
             "event": "snapshot-loaded",
             "snapshot-id": self.snapshot_id,
-            "datasets": self.datasets,
             "transaction-info": asdict(self.transaction_info),
         }
