@@ -38,7 +38,7 @@ class SnapshotControl:
         if messages_in_queue > 0:
             raise ProducerQueueNotEmpty(
                 f"The producer queue is not empty after flush timed out. "
-                "{messages_in_queue} messages still in queue." 
+                f"Messages still in queue: {messages_in_queue}" 
             )
 
 
