@@ -30,7 +30,7 @@ class ProducerBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def flush(self, timeout: float) -> None:
+    def flush(self, timeout: float) -> int:
         raise NotImplementedError
 
 

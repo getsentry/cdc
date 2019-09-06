@@ -17,6 +17,9 @@ from cdc.utils.logging import LoggerAdapter
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
+class ProducerQueueNotEmpty(Exception):
+    pass
+
 class SnapshotControl:
     """
     Sends messages on the CDC control topic.
@@ -31,7 +34,13 @@ class SnapshotControl:
         self.__poll_timeout = poll_timeout
 
     def wait_messages_sent(self) -> None:
-        self.__producer.poll(self.__poll_timeout)
+        messages_in_queue = self.__producer.flush(self.__poll_timeout)
+        if messages_in_queue > 0:
+            raise ProducerQueueNotEmpty(
+                f"The producer queue is not empty after flush timed out. "
+                "{messages_in_queue} messages still in queue." 
+            )
+
 
     def __msg_sent(self, msg: ControlMessage) -> None:
         logger.debug(

@@ -51,8 +51,8 @@ class KafkaProducerBackend(ProducerBackend):
     def poll(self, timeout: float) -> None:
         self.__producer.poll(timeout)
 
-    def flush(self, timeout: float) -> None:
-        self.__producer.flush(timeout)
+    def flush(self, timeout: float) -> int:
+        return self.__producer.flush(timeout)
 
 
 def kafka_producer_backend_factory(
