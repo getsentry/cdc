@@ -7,7 +7,9 @@ from typing import Any, AnyStr, IO, Mapping, Sequence
 
 from cdc.snapshots.destinations import DestinationContext
 from cdc.snapshots.sources import SnapshotSource
+from cdc.snapshots.snapshot_control import SnapshotControl
 from cdc.snapshots.snapshot_types import SnapshotId, TableConfig
+from cdc.streams import Producer as StreamProducer
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -27,19 +29,26 @@ class SnapshotCoordinator(ABC):
     def __init__(self,
         source: SnapshotSource,
         destination: DestinationContext,
+        control: SnapshotControl,
         product: str,
         tables: Sequence[TableConfig]) -> None:
         self.__source = source
         self.__destination = destination
         self.__product = product
         self.__tables = tables
+        self.__control = control
 
 
     def start_process(self) -> None:
         logger.debug("Starting snapshot process for product %s", self.__product)
         snapshot_id = uuid.uuid1()
         logger.info("Starting snapshot ID %s", snapshot_id)
-        # TODO: pause consumer
+        table_names = [t.table for t in self.__tables]
+        self.__control.init_snapshot(
+            snapshot_id=snapshot_id,
+            tables=table_names,
+            product=self.__product,
+        )
         with self.__destination.open(
             SnapshotId(str(snapshot_id)),
             self.__product) as snapshot_out:
@@ -51,4 +60,4 @@ class SnapshotCoordinator(ABC):
             )
             logger.info("Snapshot taken: %r", snapshot_desc)
 
-            # TODO: coordinate with the consumer to load the snapshot
+        self.__control.wait_messages_sent()

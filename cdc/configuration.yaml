@@ -24,12 +24,23 @@ source:
                 name: 'pgbench'
                 plugin: 'test_decoding'
                 create: true
+                options:
+                    include-xids: 'true'
+                    include-timestamp: 'true'
 
 snapshot:
     source:
         type: postgres
         options:
             dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
+    control:
+        producer:
+            backend:
+                type: kafka
+                options:
+                    topic: cdc_control
+                    options:
+                        bootstrap.servers: 'sentry_kafka:9093'
 
 producer:
     backend:

@@ -18,7 +18,10 @@ class KafkaProducerBackend(ProducerBackend):
     Provides a producer backend implementation that writes to a Kafka topic.
     """
 
-    def __init__(self, topic: str, options: Mapping[str, Any]):
+    def __init__(self,
+        topic: str,
+        options: Mapping[str, Any],
+    ):
         self.__topic = topic
         self.__producer = Producer(options)
 
@@ -51,8 +54,8 @@ class KafkaProducerBackend(ProducerBackend):
     def poll(self, timeout: float) -> None:
         self.__producer.poll(timeout)
 
-    def flush(self, timeout: float) -> None:
-        self.__producer.flush(timeout)
+    def flush(self, timeout: float) -> int:
+        return self.__producer.flush(timeout)
 
 
 def kafka_producer_backend_factory(
@@ -70,5 +73,6 @@ def kafka_producer_backend_factory(
         },
     )
     return KafkaProducerBackend(
-        topic=configuration["topic"], options=configuration["options"]
+        topic=configuration["topic"],
+        options=configuration["options"],
     )

@@ -1,5 +1,5 @@
 import jsonschema  # type: ignore
-from typing import Callable
+from typing import Callable, Optional
 
 from cdc.sources.types import Payload
 from cdc.streams.backends import ProducerBackend, producer_registry
@@ -46,12 +46,13 @@ class Producer(object):
         """
         self.__backend.poll(timeout)
 
-    def flush(self, timeout: float) -> None:
+    def flush(self, timeout: float) -> int:
         """
         Wait for all messages to be flushed or the timeout to be reached,
         whichever comes first.
+        Returns the number of messages still in queue, thus not sent.
         """
-        self.__backend.flush(timeout)
+        return self.__backend.flush(timeout)
 
 
 def producer_factory(configuration: Configuration) -> Producer:

@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, Optional
 
 from cdc.sources.types import Payload
 from cdc.utils.logging import LoggerAdapter
@@ -30,7 +30,7 @@ class ProducerBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def flush(self, timeout: float) -> None:
+    def flush(self, timeout: float) -> int:
         raise NotImplementedError
 
 
