@@ -1,4 +1,5 @@
 import json # type: ignore
+import jsonschema  # type: ignore
 import logging
 
 from functools import partial
@@ -12,8 +13,12 @@ from cdc.snapshots.control_protocol import (
 )
 from cdc.snapshots.snapshot_types import SnapshotId, TableConfig
 from cdc.sources.types import Message, Payload
-from cdc.streams import Producer as StreamProducer
+from cdc.streams import (
+    producer_factory,
+    Producer as StreamProducer
+)
 from cdc.utils.logging import LoggerAdapter
+from cdc.utils.registry import Configuration
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
@@ -25,14 +30,35 @@ class SnapshotControl:
     Sends messages on the CDC control topic.
     """
 
+    DEFAULT_FLUSH_TIMEOUT = 10
+
     def __init__(
         self,
         producer: StreamProducer,
+        control_settings: Optional[Configuration],
     ) -> None:
         self.__producer = producer
+        if not control_settings:
+            control_settings = {}
+        
+        jsonschema.validate(
+            control_settings,
+            {
+                "type": "object",
+                "properties": {
+                    "flush_timeout": {"type": "number"},
+                },
+                "required": [],
+            },
+        )
+        flush_timeout = control_settings.get("flush_timeout")
+        self.__flush_timeout = flush_timeout \
+            if flush_timeout is not None \
+            else self.DEFAULT_FLUSH_TIMEOUT
+
 
     def wait_messages_sent(self) -> None:
-        messages_in_queue = self.__producer.flush()
+        messages_in_queue = self.__producer.flush(self.__flush_timeout)
         if messages_in_queue > 0:
             raise ProducerQueueNotEmpty(
                 f"The producer queue is not empty after flush timed out. "

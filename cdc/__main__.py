@@ -155,7 +155,8 @@ def snapshot(ctx, snapshot_config):
             snapshot_config["destination"]["options"],
         ),
         SnapshotControl(
-            producer_factory(configuration["snapshot"]["producer"]),
+            producer_factory(configuration["snapshot"]["control"]["producer"]),
+            configuration["snapshot"]["control"].get("options"),
         ),
         snapshot_config["product"],
         tables_config,
@@ -184,7 +185,8 @@ def snapshot_abort(ctx, snapshot_id):
         raise Exception("Invalid snapshot configuration file version")
 
     control = SnapshotControl(
-        producer_factory(configuration["snapshot"]["producer"]),
+        producer_factory(configuration["snapshot"]["control"]["producer"]),
+        configuration["snapshot"]["control"].get("options"),
     )
     control.abort_snapshot(UUID(snapshot_id))
     control.wait_messages_sent()

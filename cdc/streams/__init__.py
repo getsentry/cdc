@@ -46,7 +46,7 @@ class Producer(object):
         """
         self.__backend.poll(timeout)
 
-    def flush(self, timeout: Optional[float]=None) -> int:
+    def flush(self, timeout: float) -> int:
         """
         Wait for all messages to be flushed or the timeout to be reached,
         whichever comes first.

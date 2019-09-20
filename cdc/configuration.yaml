@@ -33,13 +33,14 @@ snapshot:
         type: postgres
         options:
             dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
-    producer:
-        backend:
-            type: kafka
-            options:
-                topic: control_topic
+    control:
+        producer:
+            backend:
+                type: kafka
                 options:
-                    bootstrap.servers: 'sentry_kafka:9093'
+                    topic: cdc_control
+                    options:
+                        bootstrap.servers: 'sentry_kafka:9093'
 
 producer:
     backend:

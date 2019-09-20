@@ -20,11 +20,9 @@ class KafkaProducerBackend(ProducerBackend):
 
     def __init__(self,
         topic: str,
-        flush_timeout: Optional[float],
         options: Mapping[str, Any],
     ):
         self.__topic = topic
-        self.__flush_timeout = flush_timeout or 10
         self.__producer = Producer(options)
 
     def __repr__(self) -> str:
@@ -56,8 +54,8 @@ class KafkaProducerBackend(ProducerBackend):
     def poll(self, timeout: float) -> None:
         self.__producer.poll(timeout)
 
-    def flush(self, timeout: Optional[float]=None) -> int:
-        return self.__producer.flush(timeout or self.__flush_timeout)
+    def flush(self, timeout: float) -> int:
+        return self.__producer.flush(timeout)
 
 
 def kafka_producer_backend_factory(
@@ -69,7 +67,6 @@ def kafka_producer_backend_factory(
             "type": "object",
             "properties": {
                 "topic": {"type": "string"},
-                "flush_timeout": {"type": "number"},
                 "options": {"type": "object", "properties": {}},  # TODO
             },
             "required": ["topic"],
@@ -77,6 +74,5 @@ def kafka_producer_backend_factory(
     )
     return KafkaProducerBackend(
         topic=configuration["topic"],
-        flush_timeout=configuration.get("flush_timeout"),
         options=configuration["options"],
     )

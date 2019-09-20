@@ -26,7 +26,7 @@ class TestSnapshotControl:
     def test_init(self) -> None:
         uuid = uuid1()
         producer = DummyProducer()
-        control = SnapshotControl(producer, 0)
+        control = SnapshotControl(producer, {})
         control.init_snapshot(
             snapshot_id=uuid,
             tables=["my_table"],
