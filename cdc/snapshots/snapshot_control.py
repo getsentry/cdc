@@ -28,13 +28,11 @@ class SnapshotControl:
     def __init__(
         self,
         producer: StreamProducer,
-        flush_timeout: Optional[int],
     ) -> None:
         self.__producer = producer
-        self.__flush_timeout = flush_timeout or 10
 
     def wait_messages_sent(self) -> None:
-        messages_in_queue = self.__producer.flush(self.__flush_timeout)
+        messages_in_queue = self.__producer.flush()
         if messages_in_queue > 0:
             raise ProducerQueueNotEmpty(
                 f"The producer queue is not empty after flush timed out. "

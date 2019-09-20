@@ -1,5 +1,5 @@
 import jsonschema  # type: ignore
-from typing import Callable
+from typing import Callable, Optional
 
 from cdc.sources.types import Payload
 from cdc.streams.backends import ProducerBackend, producer_registry
@@ -46,7 +46,7 @@ class Producer(object):
         """
         self.__backend.poll(timeout)
 
-    def flush(self, timeout: float) -> int:
+    def flush(self, timeout: Optional[float]=None) -> int:
         """
         Wait for all messages to be flushed or the timeout to be reached,
         whichever comes first.
@@ -55,28 +55,23 @@ class Producer(object):
         return self.__backend.flush(timeout)
 
 
-PRODUCER_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "flush_timeout": {
-            "type": "integer",
-        },
-        "backend": {
-            "type": "object",
-            "properties": {
-                "type": {"type": "string"},
-                "options": {"type": "object"},
-            },
-            "required": ["type"],
-        }
-    },
-    "required": ["backend"],
-}
-
 def producer_factory(configuration: Configuration) -> Producer:
     jsonschema.validate(
         configuration,
-        PRODUCER_SCHEMA,
+        {
+            "type": "object",
+            "properties": {
+                "backend": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string"},
+                        "options": {"type": "object"},
+                    },
+                    "required": ["type"],
+                }
+            },
+            "required": ["backend"],
+        },
     )
     return Producer(
         backend=producer_registry.new(
