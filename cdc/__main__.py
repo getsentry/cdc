@@ -106,7 +106,7 @@ def snapshot(ctx, snapshot_config):
     from cdc.snapshots.sources import registry as source_registry
     from cdc.snapshots.destinations import registry as destination_registry
     from cdc.snapshots.snapshot_control import SnapshotControl
-    from cdc.streams import producer_factory
+    from cdc.streams import producer_factory, PRODUCER_SCHEMA
     configuration = ctx.obj
     
     snapshot_config = yaml.load(snapshot_config, Loader=yaml.SafeLoader)
@@ -145,6 +145,11 @@ def snapshot(ctx, snapshot_config):
         for t in snapshot_config['tables']
     ]
 
+    jsonschema.validate(
+        configuration["snapshot"]["producer"],
+        PRODUCER_SCHEMA,
+    )
+
     coordinator = SnapshotCoordinator(
         source_registry.new(
             configuration["snapshot"]["source"]["type"],
@@ -156,7 +161,7 @@ def snapshot(ctx, snapshot_config):
         ),
         SnapshotControl(
             producer_factory(configuration["snapshot"]["producer"]),
-            configuration["snapshot"]["producer"]["poll_timeout"],
+            configuration["snapshot"]["producer"].get("flush_timeout"),
         ),
         snapshot_config["product"],
         tables_config,
@@ -178,15 +183,20 @@ def snapshot(ctx, snapshot_config):
 def snapshot_abort(ctx, snapshot_id):
     from uuid import UUID
     from cdc.snapshots.snapshot_control import SnapshotControl
-    from cdc.streams import producer_factory
+    from cdc.streams import producer_factory, PRODUCER_SCHEMA
     configuration = ctx.obj
     
     if configuration["version"] != 1:
         raise Exception("Invalid snapshot configuration file version")
 
+    jsonschema.validate(
+        configuration["snapshot"]["producer"],
+        PRODUCER_SCHEMA,
+    )
+
     control = SnapshotControl(
         producer_factory(configuration["snapshot"]["producer"]),
-        configuration["snapshot"]["producer"]["poll_timeout"],
+        configuration["snapshot"]["producer"].get("flush_timeout"),
     )
     control.abort_snapshot(UUID(snapshot_id))
     control.wait_messages_sent()

@@ -50,27 +50,33 @@ class Producer(object):
         """
         Wait for all messages to be flushed or the timeout to be reached,
         whichever comes first.
+        Returns the number of messages still in queue, thus not sent.
         """
         return self.__backend.flush(timeout)
 
 
+PRODUCER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "flush_timeout": {
+            "type": "integer",
+        },
+        "backend": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string"},
+                "options": {"type": "object"},
+            },
+            "required": ["type"],
+        }
+    },
+    "required": ["backend"],
+}
+
 def producer_factory(configuration: Configuration) -> Producer:
     jsonschema.validate(
         configuration,
-        {
-            "type": "object",
-            "properties": {
-                "backend": {
-                    "type": "object",
-                    "properties": {
-                        "type": {"type": "string"},
-                        "options": {"type": "object"},
-                    },
-                    "required": ["type"],
-                }
-            },
-            "required": ["backend"],
-        },
+        PRODUCER_SCHEMA,
     )
     return Producer(
         backend=producer_registry.new(

@@ -2,7 +2,7 @@ import json # type: ignore
 import logging
 
 from functools import partial
-from typing import Sequence
+from typing import Optional, Sequence
 from uuid import UUID
 
 from cdc.snapshots.control_protocol import (
@@ -28,13 +28,13 @@ class SnapshotControl:
     def __init__(
         self,
         producer: StreamProducer,
-        poll_timeout: int,
+        flush_timeout: Optional[int],
     ) -> None:
         self.__producer = producer
-        self.__poll_timeout = poll_timeout
+        self.__flush_timeout = flush_timeout or 10
 
     def wait_messages_sent(self) -> None:
-        messages_in_queue = self.__producer.flush(self.__poll_timeout)
+        messages_in_queue = self.__producer.flush(self.__flush_timeout)
         if messages_in_queue > 0:
             raise ProducerQueueNotEmpty(
                 f"The producer queue is not empty after flush timed out. "

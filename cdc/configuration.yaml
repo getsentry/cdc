@@ -19,11 +19,14 @@ source:
     backend:
         type: postgres_logical
         options:
-            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
+            dsn: 'postgres://postgres@sentry_postgres:5432/sentry'
             slot:
-                name: 'pgbench'
-                plugin: 'test_decoding'
+                name: 'cdc'
+                plugin: 'wal2json'
                 create: true
+                options:
+                    include-xids: 'true'
+                    include-timestamp: 'true'
 
 snapshot:
     source:
@@ -31,7 +34,6 @@ snapshot:
         options:
             dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
     producer:
-        poll_timeout: 10
         backend:
             type: kafka
             options:
@@ -43,12 +45,12 @@ producer:
     backend:
         type: kafka
         options:
-            topic: topic
+            topic: cdc
             options:
                 bootstrap.servers: 'sentry_kafka:9093'
 
 dogstatsd:
-    host: localhost
+    host: host.docker.internal
     port: 8125
     message_sampling_rate: 0.1
     task_sampling_rate: 1.0
