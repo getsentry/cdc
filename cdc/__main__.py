@@ -168,11 +168,9 @@ def snapshot(ctx, snapshot_config):
 @main.command(
     help="Aborts a snapshot by sending the message on the control topic"
 )
-@click.option(
-    "-s",
-    "--snapshot-id",
+@click.argument(
+    "snapshot_id",
     type=click.STRING,
-    help="Snapshot ID to stop",
 )
 @click.pass_context
 def snapshot_abort(ctx, snapshot_id):
