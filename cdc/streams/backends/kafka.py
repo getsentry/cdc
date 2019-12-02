@@ -6,6 +6,7 @@ from typing import Any, Callable, Mapping, Optional
 
 from cdc.sources.types import Payload
 from cdc.streams.backends import ProducerBackend
+from cdc.types import ConfigurationError
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -23,7 +24,7 @@ class KafkaProducerBackend(ProducerBackend):
         options: Mapping[str, Any],
     ):
         self.__topic = topic
-        self.__producer = Producer(options)
+        self.__producer = Producer(self.__validate_options(options))
 
     def __repr__(self) -> str:
         return "<{type}: {topic!r}>".format(
@@ -43,6 +44,23 @@ class KafkaProducerBackend(ProducerBackend):
         if error is not None:
             raise Exception(error)
         callback()
+
+    def __validate_options(self, options: Mapping[str, Any]):
+        aliases = {
+            True: frozenset(['true']),
+        }
+
+        requirements = {
+            "enable.idempotence": True,
+            "enable.gapless.guarantee": True,
+        }
+
+        for key, value in requirements.items():
+            valid_values = frozenset([value]) | aliases.get(value, frozenset())
+            if options.setdefault(key, value) not in valid_values:
+                raise ConfigurationError(f"{key!r} must be set to one of {valid_values!r}")
+
+        return options
 
     def write(self, payload: Payload, callback: Callable[[], None]) -> None:
         self.__producer.produce(

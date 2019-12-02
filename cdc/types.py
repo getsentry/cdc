@@ -2,6 +2,10 @@ from datetime import datetime
 from typing import Callable, NamedTuple
 
 
+class ConfigurationError(Exception):
+    pass
+
+
 class ScheduledTask(NamedTuple):
     deadline: datetime
     callable: Callable[[], None]
