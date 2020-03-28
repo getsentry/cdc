@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from abc import ABC
+from dataclasses import dataclass
 from typing import NamedTuple, NewType
 
 
@@ -17,6 +21,11 @@ class Message(NamedTuple):
     # of the running process.
     id: Id
 
+    payload: MsgPayload
+
+
+@dataclass(frozen=True)
+class MsgPayload(ABC):
     # The current replication position. This value is provided by the source,
     # and the meaning of the value is dependent on which source is being used.
     position: Position
@@ -24,3 +33,23 @@ class Message(NamedTuple):
     # The replication data payload. This value is provided by the source, and
     # the meaning of the value is dependent on which source is being used.
     payload: Payload
+
+
+@dataclass(frozen=True)
+class BeginMessage(MsgPayload):
+    pass
+
+
+@dataclass(frozen=True)
+class CommitMessage(MsgPayload):
+    pass
+
+
+@dataclass(frozen=True)
+class ChangeMessage(MsgPayload):
+    table: str
+
+
+@dataclass(frozen=True)
+class GenericMessage(MsgPayload):
+    pass

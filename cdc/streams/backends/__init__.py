@@ -1,12 +1,14 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, Optional
+from typing import Callable, Mapping, NewType
 
 from cdc.sources.types import Payload
 from cdc.utils.logging import LoggerAdapter
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
+
+MsgHeaders = NewType("MsgHeaders", Mapping[str, str])
 
 
 class ProducerBackend(ABC):
@@ -22,7 +24,9 @@ class ProducerBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def write(self, payload: Payload, callback: Callable[[], None]) -> None:
+    def write(
+        self, payload: Payload, headers: MsgHeaders, callback: Callable[[], None]
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -11,13 +11,51 @@ from select import select
 from typing import Mapping, Optional, Tuple
 
 from cdc.sources.backends import SourceBackend
-from cdc.sources.types import Payload, Position
+from cdc.sources.types import (
+    MsgPayload,
+    BeginMessage,
+    CommitMessage,
+    GenericMessage,
+    ChangeMessage,
+    Payload,
+    Position,
+)
 from cdc.types import ScheduledTask
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
 
 logger = LoggerAdapter(logging.getLogger(__name__))
+
+
+def parse_payload(payload: Payload, data_start: int) -> MsgPayload:
+    if payload[:2] == b"B|":
+        return BeginMessage(Position(data_start), Payload(payload[2:]))
+    elif payload[:2] == b"C|":
+        return CommitMessage(Position(data_start), Payload(payload[2:]))
+    elif payload[:2] == b"G|":
+        return GenericMessage(Position(data_start), Payload(payload[2:]))
+    elif payload[:2] == b"M|":
+        second = payload[2:]
+        consuming_payload = False
+        payload_start = 0
+        escape = False
+        while not consuming_payload:
+            if chr(second[payload_start]) == "\\":
+                escape = not escape
+            else:
+                if chr(second[payload_start]) == "|" and not escape:
+                    consuming_payload = True
+                escape = False
+            payload_start = payload_start + 1
+
+        table_name = second[: payload_start - 1].decode("utf-8", "strict")
+        table_name = table_name.replace("\\\\", "\\").replace("\\|", "|")
+        return ChangeMessage(
+            Position(data_start), Payload(second[payload_start:]), table_name
+        )
+    else:
+        return GenericMessage(Position(data_start), Payload(payload))
 
 
 class PostgresLogicalReplicationSlotBackend(SourceBackend):
@@ -110,10 +148,10 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         return self.__cursor
 
-    def fetch(self) -> Optional[Tuple[Position, Payload]]:
+    def fetch(self) -> Optional[MsgPayload]:
         message = self.__get_cursor(create=True).read_message()
         if message is not None:
-            return (Position(message.data_start), Payload(message.payload))
+            return parse_payload(message.payload, message.data_start)
         else:
             return None
 
@@ -121,9 +159,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         select([self.__get_cursor()], [], [], timeout)
 
     def commit_positions(
-        self,
-        write_position: Optional[Position],
-        flush_position: Optional[Position],
+        self, write_position: Optional[Position], flush_position: Optional[Position]
     ) -> None:
         send_feedback_kwargs = {}
 

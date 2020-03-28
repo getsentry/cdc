@@ -68,7 +68,7 @@ class Source(object):
         """
         result = self.__backend.fetch()
         if result is not None:
-            return Message(Id(next(self.__id_generator)), result[0], result[1])
+            return Message(Id(next(self.__id_generator)), result)
         else:
             return None
 
@@ -139,7 +139,7 @@ class Source(object):
         task = ScheduledTask(
             self.__last_commit_datetime + timedelta(seconds=self.__commit_timeout),
             self.commit_positions,
-            self.COMMIT_TASK
+            self.COMMIT_TASK,
         )
 
         backend_task = self.__backend.get_next_scheduled_task(now)

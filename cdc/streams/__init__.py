@@ -1,8 +1,8 @@
 import jsonschema  # type: ignore
 from typing import Callable, Optional
 
-from cdc.sources.types import Payload
-from cdc.streams.backends import ProducerBackend, producer_registry
+from cdc.sources.types import MsgPayload, ChangeMessage
+from cdc.streams.backends import MsgHeaders, ProducerBackend, producer_registry
 from cdc.utils.registry import Configuration
 
 
@@ -29,14 +29,18 @@ class Producer(object):
         """
         return len(self.__backend)
 
-    def write(self, payload: Payload, callback: Callable[[], None]) -> None:
+    def write(self, payload: MsgPayload, callback: Callable[[], None]) -> None:
         """
         Write a replication payload to the destination.
 
         This method should not block. When the message has succesfully been
         flushed, the callback will be invoked without parameters.
         """
-        self.__backend.write(payload, callback)
+        if isinstance(payload, ChangeMessage):
+            headers = {"table": payload.table}
+        else:
+            headers = {}
+        self.__backend.write(payload.payload, MsgHeaders(headers), callback)
 
     def poll(self, timeout: float) -> None:
         """

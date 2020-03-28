@@ -39,7 +39,7 @@ class Producer(object):
 
     def __produce_callback(self, message: Message, start: float) -> None:
         self.__stats.message_flushed(start)
-        self.source.set_flush_position(message.id, message.position)
+        self.source.set_flush_position(message.id, message.payload.position)
 
     def run(self) -> None:
         iterations_without_source_message = 0
@@ -93,7 +93,7 @@ class Producer(object):
                     )
                 else:
                     logger.trace("Succesfully wrote %r to %r.", message, self.producer)
-                    self.source.set_write_position(message.id, message.position)
+                    self.source.set_write_position(message.id, message.payload.position)
                     message = None
 
             # Invoke any queued delivery callbacks here, since these may change

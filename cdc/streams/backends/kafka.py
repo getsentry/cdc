@@ -5,7 +5,7 @@ from confluent_kafka import KafkaError, Producer  # type: ignore
 from typing import Any, Callable, Mapping, Optional
 
 from cdc.sources.types import Payload
-from cdc.streams.backends import ProducerBackend
+from cdc.streams.backends import MsgHeaders, ProducerBackend
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -18,10 +18,7 @@ class KafkaProducerBackend(ProducerBackend):
     Provides a producer backend implementation that writes to a Kafka topic.
     """
 
-    def __init__(self,
-        topic: str,
-        options: Mapping[str, Any],
-    ):
+    def __init__(self, topic: str, options: Mapping[str, Any]):
         self.__topic = topic
         self.__producer = Producer(options)
 
@@ -44,11 +41,14 @@ class KafkaProducerBackend(ProducerBackend):
             raise Exception(error)
         callback()
 
-    def write(self, payload: Payload, callback: Callable[[], None]) -> None:
+    def write(
+        self, payload: Payload, headers: MsgHeaders, callback: Callable[[], None]
+    ) -> None:
         self.__producer.produce(
             self.__topic,
             payload,
             callback=functools.partial(self.__delivery_callback, callback),
+            headers=headers,
         )
 
     def poll(self, timeout: float) -> None:
@@ -73,6 +73,5 @@ def kafka_producer_backend_factory(
         },
     )
     return KafkaProducerBackend(
-        topic=configuration["topic"],
-        options=configuration["options"],
+        topic=configuration["topic"], options=configuration["options"]
     )
