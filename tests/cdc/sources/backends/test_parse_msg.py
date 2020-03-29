@@ -1,6 +1,6 @@
 import pytest
 
-from cdc.sources.backends.postgres_logical import parse_payload
+from cdc.sources.backends.postgres_logical import wal_parser_with_headers
 from cdc.sources.types import (
     BeginMessage,
     ChangeMessage,
@@ -65,5 +65,5 @@ test_data = [
 
 @pytest.mark.parametrize("payload, expected", test_data)
 def test_parse_replication_msg(payload: bytes, expected: MsgPayload) -> None:
-    parsed = parse_payload(payload, 1)
+    parsed = wal_parser_with_headers(payload, 1)
     assert parsed == expected

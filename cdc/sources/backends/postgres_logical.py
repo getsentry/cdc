@@ -8,7 +8,7 @@ from psycopg2.extras import (  # type: ignore
     REPLICATION_LOGICAL,
 )
 from select import select
-from typing import Mapping, Optional, Tuple
+from typing import Callable, Mapping, Optional, Tuple
 
 from cdc.sources.backends import SourceBackend
 from cdc.sources.types import (
@@ -27,8 +27,14 @@ from cdc.utils.registry import Configuration
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
+PayloadParser = Callable[[Payload, int], MsgPayload]
 
-def parse_payload(payload: Payload, data_start: int) -> MsgPayload:
+
+def default_wal_parser(payload: Payload, data_start: int) -> MsgPayload:
+    return GenericMessage(Position(data_start), Payload(payload))
+
+
+def wal_parser_with_headers(payload: Payload, data_start: int) -> MsgPayload:
     if payload[:2] == b"B|":
         return BeginMessage(Position(data_start), Payload(payload[2:]))
     elif payload[:2] == b"C|":
@@ -67,6 +73,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
     def __init__(
         self,
         dsn: str,
+        wal_parser: PayloadParser,
         slot_name: str,
         slot_plugin: str,
         slot_options: Optional[Mapping[str, str]] = None,
@@ -83,6 +90,8 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
             keepalive_interval = 10.0
 
         self.__dsn = dsn
+
+        self.__wal_parser = wal_parser
 
         # The name of the replication slot.
         self.__slot_name = slot_name
@@ -151,7 +160,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
     def fetch(self) -> Optional[MsgPayload]:
         message = self.__get_cursor(create=True).read_message()
         if message is not None:
-            return parse_payload(message.payload, message.data_start)
+            return self.__wal_parser(message.payload, message.data_start)
         else:
             return None
 
@@ -188,6 +197,20 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         )
 
 
+def wal_parser_factory(slot_config: Configuration) -> PayloadParser:
+    parser_type = slot_config.get("parser", "default")
+    if parser_type == "default":
+        options = slot_config.get("options", {})
+        include_headers = options.get("include-message-header", "false")
+        assert (
+            include_headers == "false"
+        ), "Invalid slot config. Cannot run default parser with include-message-header option."
+        return default_wal_parser
+    elif parser_type == "wal2json_with_headers":
+        return wal_parser_with_headers
+    raise ValueError(f"Parser type not defined: {parser_type}")
+
+
 def postgres_logical_factory(
     configuration: Configuration
 ) -> PostgresLogicalReplicationSlotBackend:
@@ -201,6 +224,7 @@ def postgres_logical_factory(
                     "type": "object",
                     "properties": {
                         "name": {"type": "string"},
+                        "parser": {"type": "string"},
                         "plugin": {"type": "string"},
                         "create": {"type": "boolean"},
                         "options": {"type": "object", "properties": {}},  # TODO
@@ -214,6 +238,7 @@ def postgres_logical_factory(
     )
     return PostgresLogicalReplicationSlotBackend(
         dsn=configuration["dsn"],
+        wal_parser=wal_parser_factory(configuration["slot"]),
         slot_name=configuration["slot"]["name"],
         slot_plugin=configuration["slot"]["plugin"],
         slot_create=configuration["slot"].get("create"),
