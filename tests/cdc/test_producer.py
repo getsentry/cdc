@@ -13,7 +13,7 @@ from cdc.sources.types import (
     Payload,
     Position,
 )
-from cdc.streams.backends import MsgHeaders, ProducerBackend
+from cdc.streams.backends import ProducerBackend
 from cdc.types import ScheduledTask
 from cdc.producer import Producer
 from cdc.streams import Producer as StreamProducer
@@ -30,11 +30,9 @@ class FakeProducerBackend(ProducerBackend):
     def __len__(self) -> int:
         return 0
 
-    def write(
-        self, payload: Payload, headers: MsgHeaders, callback: Callable[[], None]
-    ) -> None:
+    def write(self, payload: MsgPayload, callback: Callable[[], None]) -> None:
         self.__semaphore.release()
-        self.mocked_write(payload, headers)
+        self.mocked_write(payload)
         self.__callbacks.append(callback)
         # callback()
 
@@ -133,15 +131,13 @@ def test_one_message() -> None:
     Test one single message.
     """
 
+    message = ChangeMessage(Position(10), Payload(b"MY MESSAGE"), "mytable")
+
     def checker(source: FakeSourceBackend, producer: FakeProducerBackend):
         source.mocked_fetch.assert_called()
         source.commit_positions.assert_called_once_with(10, 10)
         source.get_next_scheduled_task.assert_called()
-        producer.mocked_write.assert_called_once_with(
-            Payload(b"MY MESSAGE"), {"table": "mytable"}
-        )
-
-    message = ChangeMessage(Position(10), Payload(b"MY MESSAGE"), "mytable")
+        producer.mocked_write.assert_called_once_with(message)
 
     run_loop(
         1,
@@ -158,16 +154,15 @@ def test_multiple_messages() -> None:
     Tests the order of multiple messages.
     """
 
+    messages = [
+        CommitMessage(Position(pos), Payload("M %d" % pos)) for pos in range(10)
+    ]
+
     def checker(source: FakeSourceBackend, producer: FakeProducerBackend):
         source.mocked_fetch.assert_called()
         source.get_next_scheduled_task.assert_called()
         source.commit_positions.assert_called_once_with(9, 9)
-        write_calls = [call("M %d" % pos, {}) for pos in range(10)]
-        producer.mocked_write.assert_has_calls(write_calls)
-
-    messages = [
-        CommitMessage(Position(pos), Payload("M %d" % pos)) for pos in range(10)
-    ]
+        producer.mocked_write.assert_has_calls([call(m) for m in messages])
 
     run_loop(
         10,

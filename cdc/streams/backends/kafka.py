@@ -4,8 +4,8 @@ import logging
 from confluent_kafka import KafkaError, Producer  # type: ignore
 from typing import Any, Callable, Mapping, Optional
 
-from cdc.sources.types import Payload
-from cdc.streams.backends import MsgHeaders, ProducerBackend
+from cdc.sources.types import ChangeMessage, MsgPayload
+from cdc.streams.backends import ProducerBackend
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -41,12 +41,14 @@ class KafkaProducerBackend(ProducerBackend):
             raise Exception(error)
         callback()
 
-    def write(
-        self, payload: Payload, headers: MsgHeaders, callback: Callable[[], None]
-    ) -> None:
+    def write(self, msg: MsgPayload, callback: Callable[[], None]) -> None:
+        if isinstance(msg, ChangeMessage):
+            headers = {"table": msg.table}
+        else:
+            headers = {}
         self.__producer.produce(
             self.__topic,
-            payload,
+            msg.payload,
             callback=functools.partial(self.__delivery_callback, callback),
             headers=headers,
         )

@@ -2,7 +2,7 @@ import jsonschema  # type: ignore
 from typing import Callable, Optional
 
 from cdc.sources.types import MsgPayload, ChangeMessage
-from cdc.streams.backends import MsgHeaders, ProducerBackend, producer_registry
+from cdc.streams.backends import ProducerBackend, producer_registry
 from cdc.utils.registry import Configuration
 
 
@@ -36,11 +36,7 @@ class Producer(object):
         This method should not block. When the message has succesfully been
         flushed, the callback will be invoked without parameters.
         """
-        if isinstance(payload, ChangeMessage):
-            headers = {"table": payload.table}
-        else:
-            headers = {}
-        self.__backend.write(payload.payload, MsgHeaders(headers), callback)
+        self.__backend.write(payload, callback)
 
     def poll(self, timeout: float) -> None:
         """
