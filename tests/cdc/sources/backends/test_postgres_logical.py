@@ -8,8 +8,12 @@ from contextlib import closing
 from datetime import datetime
 from psycopg2.sql import SQL, Identifier
 
-from cdc.sources.backends.postgres_logical import PostgresLogicalReplicationSlotBackend
+from cdc.sources.backends.postgres_logical import (
+    parse_generic_message,
+    PostgresLogicalReplicationSlotBackend,
+)
 from cdc.testutils.fixtures import dsn
+
 
 def wait(callable, test, attempts=10, delay=1):
     for attempt in range(1, attempts + 1):
@@ -57,6 +61,7 @@ def test(dsn, slot_name):
     create_backend = functools.partial(
         PostgresLogicalReplicationSlotBackend,
         dsn=dsn,
+        wal_msg_parser=parse_generic_message,
         slot_name=slot_name,
         slot_plugin="test_decoding",
         keepalive_interval=keepalive_interval,
