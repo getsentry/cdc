@@ -11,7 +11,7 @@ logging:
             class: 'logging.StreamHandler'
             formatter: 'simple'
     root:
-        level: DEBUG
+        level: TRACE
         handlers:
             - 'stderr'
 
