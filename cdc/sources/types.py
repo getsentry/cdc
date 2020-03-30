@@ -12,7 +12,7 @@ Payload = NewType("Payload", bytes)
 
 class CdcMessage(NamedTuple):
     """
-    An abstraction that represent a Replication message with a logical id used
+    An abstraction that represents a replication message with a logical id used
     internally to the producer.
     """
 
