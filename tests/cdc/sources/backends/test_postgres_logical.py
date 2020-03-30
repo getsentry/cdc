@@ -99,17 +99,17 @@ def test(dsn, slot_name):
             connection.commit()
 
         result = wait(backend.fetch, lambda result: result is not None)
-        assert result[1] == f"BEGIN {xid}".encode("ascii")
+        assert result.payload == f"BEGIN {xid}".encode("ascii")
 
         result = wait(backend.fetch, lambda result: result is not None)
         assert (
-            result[1]
+            result.payload
             == b"table public.select_table_1: INSERT: a[integer]:1 b[text]:'test'"
         )
 
         result = wait(backend.fetch, lambda result: result is not None)
-        position = result[0]
-        assert result[1] == f"COMMIT {xid}".encode("ascii")
+        position = result.position
+        assert result.payload == f"COMMIT {xid}".encode("ascii")
 
         # Ensure that sending keepalives and committing positions cause the
         # keepalive task deadline to be moved.
