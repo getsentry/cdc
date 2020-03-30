@@ -4,7 +4,7 @@ import time
 
 from datetime import datetime
 
-from cdc.sources import Source, Message
+from cdc.sources import Source, CdcMessage
 from cdc.streams import Producer as StreamProducer
 
 from cdc.utils.logging import LoggerAdapter
@@ -37,7 +37,7 @@ class Producer(object):
         )
         self.__shutting_down = True
 
-    def __produce_callback(self, message: Message, start: float) -> None:
+    def __produce_callback(self, message: CdcMessage, start: float) -> None:
         self.__stats.message_flushed(start)
         self.source.set_flush_position(message.id, message.payload.position)
 

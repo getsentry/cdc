@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from cdc.sources.backends import SourceBackend, registry
-from cdc.sources.types import Id, Message, Position
+from cdc.sources.types import Id, CdcMessage, Position
 from cdc.types import ScheduledTask
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
@@ -59,7 +59,7 @@ class Source(object):
             type=type(self).__name__, backend=self.__backend
         )
 
-    def fetch(self) -> Optional[Message]:
+    def fetch(self) -> Optional[CdcMessage]:
         """
         Attempts to fetch the next message from the source backend. If no
         message is ready, ``None`` is returned instead.
@@ -68,7 +68,7 @@ class Source(object):
         """
         result = self.__backend.fetch()
         if result is not None:
-            return Message(Id(next(self.__id_generator)), result)
+            return CdcMessage(Id(next(self.__id_generator)), result)
         else:
             return None
 

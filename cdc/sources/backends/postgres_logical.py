@@ -8,11 +8,11 @@ from psycopg2.extras import (  # type: ignore
     REPLICATION_LOGICAL,
 )
 from select import select
-from typing import Callable, Mapping, Optional, Tuple
+from typing import Callable, Mapping, Optional
 
 from cdc.sources.backends import SourceBackend
 from cdc.sources.types import (
-    MsgPayload,
+    ReplicationMessage,
     BeginMessage,
     CommitMessage,
     GenericMessage,
@@ -27,14 +27,25 @@ from cdc.utils.registry import Configuration
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
-PayloadParser = Callable[[Payload, int], MsgPayload]
+WalMessageParser = Callable[[Payload, int], ReplicationMessage]
 
 
-def default_wal_parser(payload: Payload, data_start: int) -> MsgPayload:
+def parse_generic_message(payload: Payload, data_start: int) -> ReplicationMessage:
     return GenericMessage(Position(data_start), Payload(payload))
 
 
-def wal_parser_with_headers(payload: Payload, data_start: int) -> MsgPayload:
+def parse_message_with_headers(payload: Payload, data_start: int) -> ReplicationMessage:
+    """
+    Parses a message produced by wal2json in this format:
+    TYPE|HEADERS|JSON
+    or falls back to a GenericMessage if the input is not
+    following the format above.
+    """
+
+    # Intentionally not parsing the full expression through a regex because
+    # we do not need to parse the whole message and because there is no
+    # constraint on what the payload section can contain making the regex
+    # uselessly complex.
     if payload[:2] == b"B|":
         return BeginMessage(Position(data_start), Payload(payload[2:]))
     elif payload[:2] == b"C|":
@@ -42,23 +53,27 @@ def wal_parser_with_headers(payload: Payload, data_start: int) -> MsgPayload:
     elif payload[:2] == b"G|":
         return GenericMessage(Position(data_start), Payload(payload[2:]))
     elif payload[:2] == b"M|":
-        second = payload[2:]
-        consuming_payload = False
-        payload_start = 0
+        payload_without_type = payload[2:]
+        consuming_json = False
+        json_start_position = 0
         escape = False
-        while not consuming_payload:
-            if chr(second[payload_start]) == "\\":
+        while not consuming_json:
+            if chr(payload_without_type[json_start_position]) == "\\":
                 escape = not escape
             else:
-                if chr(second[payload_start]) == "|" and not escape:
-                    consuming_payload = True
+                if chr(payload_without_type[json_start_position]) == "|" and not escape:
+                    consuming_json = True
                 escape = False
-            payload_start = payload_start + 1
+            json_start_position = json_start_position + 1
 
-        table_name = second[: payload_start - 1].decode("utf-8", "strict")
+        table_name = payload_without_type[: json_start_position - 1].decode(
+            "utf-8", "strict"
+        )
         table_name = table_name.replace("\\\\", "\\").replace("\\|", "|")
         return ChangeMessage(
-            Position(data_start), Payload(second[payload_start:]), table_name
+            Position(data_start),
+            Payload(payload_without_type[json_start_position:]),
+            table_name,
         )
     else:
         return GenericMessage(Position(data_start), Payload(payload))
@@ -73,7 +88,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
     def __init__(
         self,
         dsn: str,
-        wal_parser: PayloadParser,
+        wal_msg_parser: WalMessageParser,
         slot_name: str,
         slot_plugin: str,
         slot_options: Optional[Mapping[str, str]] = None,
@@ -91,7 +106,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         self.__dsn = dsn
 
-        self.__wal_parser = wal_parser
+        self.__wal_msg_parser = wal_msg_parser
 
         # The name of the replication slot.
         self.__slot_name = slot_name
@@ -157,10 +172,10 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         return self.__cursor
 
-    def fetch(self) -> Optional[MsgPayload]:
+    def fetch(self) -> Optional[ReplicationMessage]:
         message = self.__get_cursor(create=True).read_message()
         if message is not None:
-            return self.__wal_parser(message.payload, message.data_start)
+            return self.__wal_msg_parser(message.payload, message.data_start)
         else:
             return None
 
@@ -197,7 +212,7 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
         )
 
 
-def wal_parser_factory(slot_config: Configuration) -> PayloadParser:
+def wal_msg_parser_factory(slot_config: Configuration) -> WalMessageParser:
     parser_type = slot_config.get("parser", "default")
     if parser_type == "default":
         options = slot_config.get("options", {})
@@ -205,9 +220,9 @@ def wal_parser_factory(slot_config: Configuration) -> PayloadParser:
         assert (
             include_headers == "false"
         ), "Invalid slot config. Cannot run default parser with include-message-header option."
-        return default_wal_parser
-    elif parser_type == "wal2json_with_headers":
-        return wal_parser_with_headers
+        return parse_generic_message
+    elif parser_type == "wal2json_parser_with_headers":
+        return parse_message_with_headers
     raise ValueError(f"Parser type not defined: {parser_type}")
 
 
@@ -238,7 +253,7 @@ def postgres_logical_factory(
     )
     return PostgresLogicalReplicationSlotBackend(
         dsn=configuration["dsn"],
-        wal_parser=wal_parser_factory(configuration["slot"]),
+        wal_parser=wal_msg_parser_factory(configuration["slot"]),
         slot_name=configuration["slot"]["name"],
         slot_plugin=configuration["slot"]["plugin"],
         slot_create=configuration["slot"].get("create"),

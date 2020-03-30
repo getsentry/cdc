@@ -10,9 +10,10 @@ Position = NewType("Position", int)
 Payload = NewType("Payload", bytes)
 
 
-class Message(NamedTuple):
+class CdcMessage(NamedTuple):
     """
-    Represents a replication message.
+    An abstraction that represent a Replication message with a logical id used
+    internally to the producer.
     """
 
     # A sequential identifier which can be used to ensure that messages are
@@ -21,35 +22,44 @@ class Message(NamedTuple):
     # of the running process.
     id: Id
 
-    payload: MsgPayload
+    payload: ReplicationMessage
 
 
 @dataclass(frozen=True)
-class MsgPayload(ABC):
-    # The current replication position. This value is provided by the source,
+class ReplicationMessage(ABC):
+    """
+    An abstraction that represents a replication message received from a source
+    and produced to a stream.
+    """
+
+    # The current replication position. This value is provided by the source.
     # and the meaning of the value is dependent on which source is being used.
     position: Position
 
-    # The replication data payload. This value is provided by the source, and
-    # the meaning of the value is dependent on which source is being used.
+    # The replication data payload as it should be provided to the stream after
+    # any source specific processing.
     payload: Payload
 
 
 @dataclass(frozen=True)
-class BeginMessage(MsgPayload):
+class BeginMessage(ReplicationMessage):
     pass
 
 
 @dataclass(frozen=True)
-class CommitMessage(MsgPayload):
+class CommitMessage(ReplicationMessage):
     pass
 
 
 @dataclass(frozen=True)
-class ChangeMessage(MsgPayload):
+class ChangeMessage(ReplicationMessage):
+    """
+    A DML operation performed on a specific table.
+    """
+
     table: str
 
 
 @dataclass(frozen=True)
-class GenericMessage(MsgPayload):
+class GenericMessage(ReplicationMessage):
     pass
