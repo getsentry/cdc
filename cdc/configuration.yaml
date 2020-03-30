@@ -19,22 +19,20 @@ source:
     backend:
         type: postgres_logical
         options:
-            dsn: 'postgres://postgres@sentry_postgres:5432/sentry'
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
             slot:
-                name: 'cdc'
-                plugin: 'wal2json'
-                parser: 'wal2json_parser_with_headers'
+                name: 'pgbench'
+                plugin: 'test_decoding'
                 create: true
                 options:
                     include-xids: 'true'
                     include-timestamp: 'true'
-                    include-message-header: 'true'
 
 snapshot:
     source:
         type: postgres
         options:
-            dsn: 'postgres://postgres@sentry_postgres:5432/sentry'
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
     control:
         producer:
             backend:
@@ -48,7 +46,7 @@ producer:
     backend:
         type: kafka
         options:
-            topic: cdc
+            topic: topic
             options:
                 bootstrap.servers: 'sentry_kafka:9093'
 

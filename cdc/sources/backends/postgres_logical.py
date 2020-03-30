@@ -239,7 +239,7 @@ def postgres_logical_factory(
                     "type": "object",
                     "properties": {
                         "name": {"type": "string"},
-                        "parser": {"type": "string"},
+                        "parser": {"type": "string", "default": "default"},
                         "plugin": {"type": "string"},
                         "create": {"type": "boolean"},
                         "options": {"type": "object", "properties": {}},  # TODO
@@ -253,7 +253,7 @@ def postgres_logical_factory(
     )
     return PostgresLogicalReplicationSlotBackend(
         dsn=configuration["dsn"],
-        wal_parser=wal_msg_parser_factory(configuration["slot"]),
+        wal_msg_parser=wal_msg_parser_factory(configuration["slot"]),
         slot_name=configuration["slot"]["name"],
         slot_plugin=configuration["slot"]["plugin"],
         slot_create=configuration["slot"].get("create"),
