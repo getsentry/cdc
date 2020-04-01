@@ -53,7 +53,8 @@ def parse_message_with_headers(data_start: int, payload: Payload) -> Replication
     elif payload[:2] == b"G|":
         return GenericMessage(Position(data_start), Payload(payload[2:]))
     elif payload[:2] == b"M|":
-        payload_without_type = payload[2:]
+        view = memoryview(payload)
+        payload_without_type = view[2:]
         consuming_json = False
         json_start_position = 0
         escape = False
@@ -66,13 +67,13 @@ def parse_message_with_headers(data_start: int, payload: Payload) -> Replication
                 escape = False
             json_start_position = json_start_position + 1
 
-        table_name = payload_without_type[: json_start_position - 1].decode(
+        table_name = bytes(payload_without_type[: json_start_position - 1]).decode(
             "utf-8", "strict"
         )
         table_name = table_name.replace("\\\\", "\\").replace("\\|", "|")
         return ChangeMessage(
             Position(data_start),
-            Payload(payload_without_type[json_start_position:]),
+            Payload(bytes(payload_without_type[json_start_position:])),
             table_name,
         )
     else:
