@@ -9,7 +9,7 @@ from cdc.sources.backends import SourceBackend
 from cdc.sources.types import (
     ChangeMessage,
     CommitMessage,
-    ReplicationMessage,
+    ReplicationEvent,
     Payload,
     Position,
 )
@@ -30,7 +30,7 @@ class FakeProducerBackend(ProducerBackend):
     def __len__(self) -> int:
         return 0
 
-    def write(self, payload: ReplicationMessage, callback: Callable[[], None]) -> None:
+    def write(self, payload: ReplicationEvent, callback: Callable[[], None]) -> None:
         self.__semaphore.release()
         self.mocked_write(payload)
         self.__callbacks.append(callback)
@@ -46,7 +46,7 @@ class FakeProducerBackend(ProducerBackend):
 
 class FakeSourceBackend(SourceBackend):
     def __init__(
-        self, messages: List[ReplicationMessage], tasks: Callable[[], ScheduledTask]
+        self, messages: List[ReplicationEvent], tasks: Callable[[], ScheduledTask]
     ) -> None:
         self.get_next_scheduled_task = MagicMock(side_effect=tasks)
         self.commit_positions = MagicMock()
@@ -56,7 +56,7 @@ class FakeSourceBackend(SourceBackend):
     def poll(self, timeout: float) -> None:
         return
 
-    def fetch(self) -> Optional[ReplicationMessage]:
+    def fetch(self) -> Optional[ReplicationEvent]:
         self.mocked_fetch()  # calls the mocked method to be able to run assertions
         try:
             return next(self.__messages)

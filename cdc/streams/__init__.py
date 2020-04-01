@@ -1,7 +1,7 @@
 import jsonschema  # type: ignore
 from typing import Callable, Optional
 
-from cdc.sources.types import ReplicationMessage, ChangeMessage
+from cdc.sources.types import ReplicationEvent, ChangeMessage
 from cdc.streams.backends import ProducerBackend, producer_registry
 from cdc.utils.registry import Configuration
 
@@ -29,7 +29,7 @@ class Producer(object):
         """
         return len(self.__backend)
 
-    def write(self, payload: ReplicationMessage, callback: Callable[[], None]) -> None:
+    def write(self, payload: ReplicationEvent, callback: Callable[[], None]) -> None:
         """
         Write a replication payload to the destination.
 

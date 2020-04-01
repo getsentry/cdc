@@ -6,7 +6,7 @@ from cdc.sources.types import (
     ChangeMessage,
     CommitMessage,
     GenericMessage,
-    ReplicationMessage,
+    ReplicationEvent,
     Payload,
     Position,
 )
@@ -64,6 +64,6 @@ test_data = [
 
 
 @pytest.mark.parametrize("payload, expected", test_data)
-def test_parse_replication_msg(payload: bytes, expected: ReplicationMessage) -> None:
-    parsed = parse_message_with_headers(payload, 1)
+def test_parse_replication_msg(payload: bytes, expected: ReplicationEvent) -> None:
+    parsed = parse_message_with_headers(1, payload)
     assert parsed == expected

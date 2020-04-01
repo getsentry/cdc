@@ -12,13 +12,13 @@ from typing import Callable, Mapping, Optional
 
 from cdc.sources.backends import SourceBackend
 from cdc.sources.types import (
-    ReplicationMessage,
     BeginMessage,
+    ChangeMessage,
     CommitMessage,
     GenericMessage,
-    ChangeMessage,
     Payload,
     Position,
+    ReplicationEvent,
 )
 from cdc.types import ScheduledTask
 from cdc.utils.logging import LoggerAdapter
@@ -27,14 +27,14 @@ from cdc.utils.registry import Configuration
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
-WalMessageParser = Callable[[Payload, int], ReplicationMessage]
+WalMessageParser = Callable[[int, Payload], ReplicationEvent]
 
 
-def parse_generic_message(payload: Payload, data_start: int) -> ReplicationMessage:
+def parse_generic_message(data_start: int, payload: Payload) -> ReplicationEvent:
     return GenericMessage(Position(data_start), Payload(payload))
 
 
-def parse_message_with_headers(payload: Payload, data_start: int) -> ReplicationMessage:
+def parse_message_with_headers(data_start: int, payload: Payload) -> ReplicationEvent:
     """
     Parses a message produced by wal2json in this format:
     TYPE|HEADERS|JSON
@@ -172,10 +172,10 @@ class PostgresLogicalReplicationSlotBackend(SourceBackend):
 
         return self.__cursor
 
-    def fetch(self) -> Optional[ReplicationMessage]:
+    def fetch(self) -> Optional[ReplicationEvent]:
         message = self.__get_cursor(create=True).read_message()
         if message is not None:
-            return self.__wal_msg_parser(message.payload, message.data_start)
+            return self.__wal_msg_parser(message.data_start, message.payload)
         else:
             return None
 

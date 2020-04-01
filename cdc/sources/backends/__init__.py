@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Optional, Tuple
 
-from cdc.sources.types import ReplicationMessage, Position
+from cdc.sources.types import ReplicationEvent, Position
 from cdc.types import ScheduledTask
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Registry
@@ -21,7 +21,7 @@ class SourceBackend(ABC):
     """
 
     @abstractmethod
-    def fetch(self) -> Optional[ReplicationMessage]:
+    def fetch(self) -> Optional[ReplicationEvent]:
         raise NotImplementedError
 
     @abstractmethod

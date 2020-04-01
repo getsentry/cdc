@@ -22,11 +22,11 @@ class CdcMessage(NamedTuple):
     # of the running process.
     id: Id
 
-    payload: ReplicationMessage
+    payload: ReplicationEvent
 
 
 @dataclass(frozen=True)
-class ReplicationMessage(ABC):
+class ReplicationEvent(ABC):
     """
     An abstraction that represents a replication message received from a source
     and produced to a stream.
@@ -42,17 +42,17 @@ class ReplicationMessage(ABC):
 
 
 @dataclass(frozen=True)
-class BeginMessage(ReplicationMessage):
+class BeginMessage(ReplicationEvent):
     pass
 
 
 @dataclass(frozen=True)
-class CommitMessage(ReplicationMessage):
+class CommitMessage(ReplicationEvent):
     pass
 
 
 @dataclass(frozen=True)
-class ChangeMessage(ReplicationMessage):
+class ChangeMessage(ReplicationEvent):
     """
     A DML operation performed on a specific table.
     """
@@ -61,5 +61,5 @@ class ChangeMessage(ReplicationMessage):
 
 
 @dataclass(frozen=True)
-class GenericMessage(ReplicationMessage):
+class GenericMessage(ReplicationEvent):
     pass
