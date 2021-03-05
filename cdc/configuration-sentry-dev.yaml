@@ -34,7 +34,7 @@ snapshot:
     source:
         type: postgres
         options:
-            dsn: 'postgres://postgres@localhost:5432/pgbench'
+            dsn: 'postgres://postgres@sentry_postgres:5432/pgbench'
     control:
         producer:
             backend:
@@ -42,7 +42,7 @@ snapshot:
                 options:
                     topic: cdc_control
                     options:
-                        bootstrap.servers: 'localhost:9092'
+                        bootstrap.servers: 'sentry_kafka:9092'
 
 producer:
     backend:
