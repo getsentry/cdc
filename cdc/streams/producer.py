@@ -1,9 +1,9 @@
-from cdc.streams.types import StreamMessage
-import jsonschema  # type: ignore
 from typing import Callable, NamedTuple, Optional
 
-from cdc.sources.types import Payload, ReplicationEvent, ChangeMessage
+import jsonschema  # type: ignore
+from cdc.sources.types import ChangeMessage, Payload, ReplicationEvent
 from cdc.streams.backends import ProducerBackend, producer_registry
+from cdc.streams.types import StreamMessage
 from cdc.utils.registry import Configuration
 
 

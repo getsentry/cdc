@@ -1,15 +1,14 @@
 import functools
-import jsonschema  # type: ignore
 import logging
-from confluent_kafka import KafkaError, Producer  # type: ignore
 from typing import Any, Callable, Mapping, Optional
 
+import jsonschema  # type: ignore
 from cdc.sources.types import ChangeMessage, ReplicationEvent
 from cdc.streams.backends import ProducerBackend
 from cdc.streams.types import StreamMessage
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
-
+from confluent_kafka import KafkaError, Producer  # type: ignore
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 

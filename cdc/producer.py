@@ -1,15 +1,12 @@
 import functools
 import logging
 import time
-
 from datetime import datetime
 
-from cdc.sources import Source, CdcMessage
+from cdc.sources import CdcMessage, Source
 from cdc.streams.producer import Producer as StreamProducer
-
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.stats import Stats
-
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 

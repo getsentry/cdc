@@ -1,11 +1,10 @@
 import json  # type: ignore
-import jsonschema  # type: ignore
 import logging
-
 from functools import partial
 from typing import Optional, Sequence
 from uuid import UUID
 
+import jsonschema  # type: ignore
 from cdc.snapshots.control_protocol import ControlMessage, SnapshotAbort, SnapshotInit
 from cdc.snapshots.snapshot_types import SnapshotId
 from cdc.sources.types import Payload

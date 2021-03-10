@@ -1,15 +1,15 @@
 import pytest
-
 from cdc.sources.backends.postgres_logical import parse_message_with_headers
 from cdc.sources.types import (
     BeginMessage,
     ChangeMessage,
     CommitMessage,
     GenericMessage,
-    ReplicationEvent,
     Payload,
     Position,
+    ReplicationEvent,
 )
+from cdc.streams.types import StreamMessage
 
 INSERT = b"""{
     "event": "change",
@@ -32,38 +32,52 @@ test_data = [
     (
         b'B|{"event":"begin", "xid":123123}',
         BeginMessage(Position(1), Payload(b'{"event":"begin", "xid":123123}')),
+        StreamMessage(Payload(b'{"event":"begin", "xid":123123}')),
     ),
     (
         b'C|{"event":"commit", "xid":123123}',
         CommitMessage(Position(1), Payload(b'{"event":"commit", "xid":123123}')),
+        StreamMessage(Payload(b'{"event":"commit", "xid":123123}')),
     ),
     (
         b'G|{"event":"something else", "xid":123123}',
         GenericMessage(
             Position(1), Payload(b'{"event":"something else", "xid":123123}')
         ),
+        StreamMessage(Payload(b'{"event":"something else", "xid":123123}')),
     ),
     (
         b'{"event":"commit", "xid":123123}',
         GenericMessage(Position(1), Payload(b'{"event":"commit", "xid":123123}')),
+        StreamMessage(Payload(b'{"event":"commit", "xid":123123}')),
     ),
     (
         b"M|table_with_unique|" + INSERT,
         ChangeMessage(Position(1), Payload(INSERT), "table_with_unique"),
+        StreamMessage(Payload(INSERT), {"table": "table_with_unique"}),
     ),
-    (b"M||" + INSERT, ChangeMessage(Position(1), Payload(INSERT), "")),
+    (
+        b"M||" + INSERT,
+        ChangeMessage(Position(1), Payload(INSERT), ""),
+        StreamMessage(Payload(INSERT), {"table": ""}),
+    ),
     (
         b"M|asd\\\\asd\\||" + INSERT,
         ChangeMessage(Position(1), Payload(INSERT), "asd\\asd|"),
+        StreamMessage(Payload(INSERT), {"table": "asd\\asd|"}),
     ),
     (
         b"M|table|" + PAYLOAD_WITH_ESCAPE,
         ChangeMessage(Position(1), Payload(PAYLOAD_WITH_ESCAPE), "table"),
+        StreamMessage(Payload(PAYLOAD_WITH_ESCAPE), {"table": "table"}),
     ),
 ]
 
 
-@pytest.mark.parametrize("payload, expected", test_data)
-def test_parse_replication_msg(payload: bytes, expected: ReplicationEvent) -> None:
+@pytest.mark.parametrize("payload, expected, stream_message", test_data)
+def test_parse_replication_msg(
+    payload: bytes, expected: ReplicationEvent, stream_message: StreamMessage
+) -> None:
     parsed = parse_message_with_headers(1, payload)
     assert parsed == expected
+    assert parsed.to_stream() == stream_message

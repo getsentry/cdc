@@ -1,5 +1,6 @@
-from cdc.types import Payload
 from typing import Mapping, NamedTuple, NewType, Optional
+
+from cdc.types import Payload
 
 
 class StreamMessage(NamedTuple):

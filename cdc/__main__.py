@@ -1,12 +1,13 @@
 import atexit
+import logging
+import logging.config
+import signal
+from typing import Any
+
 import click
 import jsonschema  # type: ignore
-import logging, logging.config
-import signal
-import yaml
 import sentry_sdk
-
-from typing import Any
+import yaml
 from pkg_resources import cleanup_resources, resource_filename
 from sentry_sdk.integrations.logging import LoggingIntegration
 
@@ -102,10 +103,10 @@ def consumer(ctx):
 )
 @click.pass_context
 def snapshot(ctx, snapshot_config):
-    from cdc.snapshots.snapshot_coordinator import SnapshotCoordinator
-    from cdc.snapshots.sources import registry as source_registry
     from cdc.snapshots.destinations import registry as destination_registry
     from cdc.snapshots.snapshot_control import SnapshotControl
+    from cdc.snapshots.snapshot_coordinator import SnapshotCoordinator
+    from cdc.snapshots.sources import registry as source_registry
     from cdc.streams.producer import producer_factory
 
     configuration = ctx.obj
@@ -167,6 +168,7 @@ def snapshot(ctx, snapshot_config):
 @click.pass_context
 def snapshot_abort(ctx, snapshot_id):
     from uuid import UUID
+
     from cdc.snapshots.snapshot_control import SnapshotControl
     from cdc.streams import producer_factory
 
