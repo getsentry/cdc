@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 from cdc.sources import Source, CdcMessage
-from cdc.streams import Producer as StreamProducer
+from cdc.streams.producer import Producer as StreamProducer
 
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.stats import Stats
@@ -79,7 +79,7 @@ class Producer(object):
                 logger.trace("Trying to write message to %r...", self.producer)
                 try:
                     self.producer.write(
-                        message.payload,
+                        message.payload.to_stream(),
                         callback=functools.partial(
                             self.__produce_callback, message, time.time()
                         ),

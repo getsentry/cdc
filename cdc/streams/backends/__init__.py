@@ -1,10 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, Mapping, NamedTuple
 
-from cdc.sources.types import ReplicationEvent
 from cdc.utils.logging import LoggerAdapter
-
+from cdc.streams.types import StreamMessage
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
@@ -22,7 +21,7 @@ class ProducerBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def write(self, payload: ReplicationEvent, callback: Callable[[], None]) -> None:
+    def write(self, payload: StreamMessage, callback: Callable[[], None]) -> None:
         raise NotImplementedError
 
     @abstractmethod

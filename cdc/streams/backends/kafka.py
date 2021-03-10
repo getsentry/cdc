@@ -6,6 +6,7 @@ from typing import Any, Callable, Mapping, Optional
 
 from cdc.sources.types import ChangeMessage, ReplicationEvent
 from cdc.streams.backends import ProducerBackend
+from cdc.streams.types import StreamMessage
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -41,16 +42,12 @@ class KafkaProducerBackend(ProducerBackend):
             raise Exception(error)
         callback()
 
-    def write(self, msg: ReplicationEvent, callback: Callable[[], None]) -> None:
-        if isinstance(msg, ChangeMessage):
-            headers = {"table": msg.table}
-        else:
-            headers = {}
+    def write(self, msg: StreamMessage, callback: Callable[[], None]) -> None:
         self.__producer.produce(
             self.__topic,
             msg.payload,
             callback=functools.partial(self.__delivery_callback, callback),
-            headers=headers,
+            headers=msg.metadata if msg.metadata is not None else {},
         )
 
     def poll(self, timeout: float) -> None:

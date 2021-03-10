@@ -1,5 +1,7 @@
 from datetime import datetime
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, NewType
+
+Payload = NewType("Payload", bytes)
 
 
 class ScheduledTask(NamedTuple):
