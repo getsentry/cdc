@@ -1,8 +1,9 @@
+from cdc.streams.types import StreamMessage
 from collections import deque
 from datetime import datetime, timedelta
 from unittest.mock import ANY, call, MagicMock
 from threading import Event, Semaphore, Thread
-from typing import Any, Callable, List, Mapping, Optional, Tuple
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple
 
 from cdc.sources import Source, CdcMessage
 from cdc.sources.backends import SourceBackend
@@ -16,7 +17,8 @@ from cdc.sources.types import (
 from cdc.streams.backends import ProducerBackend
 from cdc.types import ScheduledTask
 from cdc.producer import Producer
-from cdc.streams import Producer as StreamProducer
+from cdc.streams.producer import Producer as StreamProducer
+from cdc.streams.types import StreamMessage
 
 ACQUIRE_TIMEOUT = 5
 
@@ -30,7 +32,7 @@ class FakeProducerBackend(ProducerBackend):
     def __len__(self) -> int:
         return 0
 
-    def write(self, payload: ReplicationEvent, callback: Callable[[], None]) -> None:
+    def write(self, payload: StreamMessage, callback: Callable[[], None]) -> None:
         self.__semaphore.release()
         self.mocked_write(payload)
         self.__callbacks.append(callback)
@@ -46,7 +48,7 @@ class FakeProducerBackend(ProducerBackend):
 
 class FakeSourceBackend(SourceBackend):
     def __init__(
-        self, messages: List[ReplicationEvent], tasks: Callable[[], ScheduledTask]
+        self, messages: Sequence[ReplicationEvent], tasks: Callable[[], ScheduledTask]
     ) -> None:
         self.get_next_scheduled_task = MagicMock(side_effect=tasks)
         self.commit_positions = MagicMock()
@@ -74,7 +76,7 @@ class FakeSourceBackend(SourceBackend):
 
 def run_loop(
     expect_iterations: int,
-    messages: Callable[[], Tuple[Position, Payload]],
+    messages: Sequence[ReplicationEvent],
     tasks: Callable[[], ScheduledTask],
     checker: Callable[[FakeSourceBackend, FakeProducerBackend], None],
 ) -> None:
@@ -137,7 +139,9 @@ def test_one_message() -> None:
         source.mocked_fetch.assert_called()
         source.commit_positions.assert_called_once_with(10, 10)
         source.get_next_scheduled_task.assert_called()
-        producer.mocked_write.assert_called_once_with(message)
+        producer.mocked_write.assert_called_once_with(
+            StreamMessage(message.payload, metadata={"table": "mytable"})
+        )
 
     run_loop(
         1,
@@ -162,7 +166,9 @@ def test_multiple_messages() -> None:
         source.mocked_fetch.assert_called()
         source.get_next_scheduled_task.assert_called()
         source.commit_positions.assert_called_once_with(9, 9)
-        producer.mocked_write.assert_has_calls([call(m) for m in messages])
+        producer.mocked_write.assert_has_calls(
+            [call(StreamMessage(m.payload)) for m in messages]
+        )
 
     run_loop(
         10,
