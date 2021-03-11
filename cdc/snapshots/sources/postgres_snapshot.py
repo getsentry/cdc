@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import re
 from psycopg2 import (  # type: ignore
     connect,
     sql,
@@ -11,6 +12,8 @@ import uuid
 
 from cdc.snapshots.sources import SnapshotSource
 from cdc.snapshots.snapshot_types import (
+    ColumnConfig,
+    DateTimeFormatterConfig,
     SnapshotDescriptor,
     TableConfig,
     TableDumpFormat,
@@ -62,7 +65,7 @@ class PostgresSnapshot(SnapshotSource):
                         cols_expr = sql.SQL("*")
                     else:
                         cols_expr = sql.SQL(", ").join(
-                            [sql.Identifier(column.name) for column in table.columns]
+                            [format_column(column) for column in table.columns]
                         )
 
                     cursor.copy_expert(
@@ -74,6 +77,38 @@ class PostgresSnapshot(SnapshotSource):
 
                 logger.info("Dumped %s rows from %r.", cursor.rowcount, table)
         return snapshot_descriptor
+
+
+def format_column(column: ColumnConfig) -> sql.SQL:
+    if column.formatter is None:
+        return sql.Identifier(column.name)
+    elif isinstance(column.formatter, DateTimeFormatterConfig):
+        return format_datetime(column.name, column.formatter)
+    else:
+        raise ValueError(f"Unkonwn formatter type {type(column.formatter)}")
+
+
+DATETIME_MAPPING = {
+    re.escape("%Y"): "YYYY",
+    re.escape("%m"): "MM",
+    re.escape("%d"): "DD",
+    re.escape("%H"): "HH24",
+    re.escape("%M"): "MI",
+    re.escape("%S"): "SS",
+}
+
+DATETIME_REGEX = re.compile("|".join(DATETIME_MAPPING.keys()))
+
+
+def format_datetime(col_name: str, formatter: DateTimeFormatterConfig) -> sql.SQL:
+    postgres_format = DATETIME_REGEX.sub(
+        lambda match: DATETIME_MAPPING[match.group(0)], formatter.format
+    )
+    return sql.SQL("to_char({column}, {format}) AS {alias}").format(
+        column=sql.Identifier(col_name),
+        format=sql.Literal(postgres_format),
+        alias=sql.Identifier(col_name),
+    )
 
 
 def postgres_snapshot_factory(configuration: Configuration) -> PostgresSnapshot:
