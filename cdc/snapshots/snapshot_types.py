@@ -48,7 +48,9 @@ class TableConfig:
 
 
 class FormatterConfig(ABC):
-    pass
+    """
+    Parent class to all the the formatter configs.
+    """
 
     @classmethod
     def from_dict(cls, content: Mapping[str, str]) -> FormatterConfig:
@@ -69,6 +71,10 @@ class DateTimeFormatterConfig(FormatterConfig):
 
 @dataclass(frozen=True)
 class ColumnConfig:
+    """
+    Represents a column in the snapshot configuration.
+    """
+
     name: str
     formatter: Optional[FormatterConfig] = None
 

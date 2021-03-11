@@ -85,9 +85,10 @@ def format_column(column: ColumnConfig) -> sql.SQL:
     elif isinstance(column.formatter, DateTimeFormatterConfig):
         return format_datetime(column.name, column.formatter)
     else:
-        raise ValueError(f"Unkonwn formatter type {type(column.formatter)}")
+        raise ValueError(f"Unknown formatter type {type(column.formatter)}")
 
 
+# We could add more mappings if needed, which is unlikely.
 DATETIME_MAPPING = {
     re.escape("%Y"): "YYYY",
     re.escape("%m"): "MM",
