@@ -70,7 +70,7 @@ class DateTimeFormatterConfig(FormatterConfig):
 @dataclass(frozen=True)
 class ColumnConfig:
     name: str
-    formatter: Optional[FormatterConfig]
+    formatter: Optional[FormatterConfig] = None
 
 
 class DumpState(Enum):
