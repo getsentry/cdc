@@ -1,15 +1,14 @@
 import json  # type: ignore
-import jsonschema  # type: ignore
 import logging
-
 from functools import partial
 from typing import Optional, Sequence
 from uuid import UUID
 
+import jsonschema  # type: ignore
 from cdc.snapshots.control_protocol import ControlMessage, SnapshotAbort, SnapshotInit
 from cdc.snapshots.snapshot_types import SnapshotId
 from cdc.sources.types import Payload
-from cdc.streams import Producer as StreamProducer
+from cdc.streams.producer import Producer as StreamProducer
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -59,10 +58,8 @@ class SnapshotControl:
         logger.debug("Message sent %r", msg)
 
     def __write_msg(self, message: ControlMessage) -> None:
-        json_string = json.dumps(message.to_dict())
         self.__producer.write(
-            payload=Payload(json_string.encode("utf-8")),
-            callback=partial(self.__msg_sent, message),
+            message.to_stream(), callback=partial(self.__msg_sent, message)
         )
 
     def init_snapshot(

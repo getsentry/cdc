@@ -1,12 +1,13 @@
 import atexit
+import logging
+import logging.config
+import signal
+from typing import Any
+
 import click
 import jsonschema  # type: ignore
-import logging, logging.config
-import signal
-import yaml
 import sentry_sdk
-
-from typing import Any
+import yaml
 from pkg_resources import cleanup_resources, resource_filename
 from sentry_sdk.integrations.logging import LoggingIntegration
 
@@ -64,7 +65,7 @@ def main(ctx, configuration_file, log_level):
 def producer(ctx):
     from cdc.producer import Producer
     from cdc.sources import source_factory
-    from cdc.streams import producer_factory
+    from cdc.streams.producer import producer_factory
     from cdc.utils.stats import Stats
 
     configuration = ctx.obj
@@ -102,13 +103,14 @@ def consumer(ctx):
 )
 @click.pass_context
 def snapshot(ctx, snapshot_config):
-    from cdc.snapshots.snapshot_coordinator import SnapshotCoordinator
-    from cdc.snapshots.sources import registry as source_registry
     from cdc.snapshots.destinations import registry as destination_registry
     from cdc.snapshots.snapshot_control import SnapshotControl
-    from cdc.streams import producer_factory
+    from cdc.snapshots.snapshot_coordinator import SnapshotCoordinator
+    from cdc.snapshots.sources import registry as source_registry
+    from cdc.streams.producer import producer_factory
+
     configuration = ctx.obj
-    
+
     snapshot_config = yaml.load(snapshot_config, Loader=yaml.SafeLoader)
     if configuration["version"] != 1:
         raise Exception("Invalid snapshot configuration file version")
@@ -118,7 +120,7 @@ def snapshot(ctx, snapshot_config):
         {
             "type": "object",
             "properties": {
-                #TODO: make product more restrictive once we have a better idea on how to use it
+                # TODO: make product more restrictive once we have a better idea on how to use it
                 "product": {"type": "string"},
                 "destination": {"type": "object"},
                 "tables": {
@@ -127,22 +129,18 @@ def snapshot(ctx, snapshot_config):
                         "type": "object",
                         "properties": {
                             "table": {"type": "string"},
-                            "columns": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                            }
+                            "columns": {"type": "array", "items": {"type": "string"}},
                         },
                         "required": ["table"],
-                    }
-                }
+                    },
+                },
             },
             "required": ["product", "destination", "tables"],
         },
     )
 
     tables_config = [
-        TableConfig(t['table'], t.get('columns'))
-        for t in snapshot_config['tables']
+        TableConfig(t["table"], t.get("columns")) for t in snapshot_config["tables"]
     ]
 
     coordinator = SnapshotCoordinator(
@@ -165,20 +163,17 @@ def snapshot(ctx, snapshot_config):
     coordinator.start_process()
 
 
-@main.command(
-    help="Aborts a snapshot by sending the message on the control topic"
-)
-@click.argument(
-    "snapshot_id",
-    type=click.STRING,
-)
+@main.command(help="Aborts a snapshot by sending the message on the control topic")
+@click.argument("snapshot_id", type=click.STRING)
 @click.pass_context
 def snapshot_abort(ctx, snapshot_id):
     from uuid import UUID
+
     from cdc.snapshots.snapshot_control import SnapshotControl
     from cdc.streams import producer_factory
+
     configuration = ctx.obj
-    
+
     if configuration["version"] != 1:
         raise Exception("Invalid snapshot configuration file version")
 

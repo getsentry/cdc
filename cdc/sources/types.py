@@ -3,11 +3,11 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from typing import NamedTuple, NewType
-
+from cdc.types import Payload
+from cdc.streams.types import StreamMessage
 
 Id = NewType("Id", int)
 Position = NewType("Position", int)
-Payload = NewType("Payload", bytes)
 
 
 class CdcMessage(NamedTuple):
@@ -40,6 +40,9 @@ class ReplicationEvent(ABC):
     # any source specific processing.
     payload: Payload
 
+    def to_stream(self) -> StreamMessage:
+        return StreamMessage(payload=self.payload)
+
 
 @dataclass(frozen=True)
 class BeginMessage(ReplicationEvent):
@@ -58,6 +61,9 @@ class ChangeMessage(ReplicationEvent):
     """
 
     table: str
+
+    def to_stream(self) -> StreamMessage:
+        return StreamMessage(payload=self.payload, metadata={"table": self.table})
 
 
 @dataclass(frozen=True)

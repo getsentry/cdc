@@ -1,14 +1,14 @@
 import functools
-import jsonschema  # type: ignore
 import logging
-from confluent_kafka import KafkaError, Producer  # type: ignore
 from typing import Any, Callable, Mapping, Optional
 
+import jsonschema  # type: ignore
 from cdc.sources.types import ChangeMessage, ReplicationEvent
 from cdc.streams.backends import ProducerBackend
+from cdc.streams.types import StreamMessage
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
-
+from confluent_kafka import KafkaError, Producer  # type: ignore
 
 logger = LoggerAdapter(logging.getLogger(__name__))
 
@@ -41,16 +41,12 @@ class KafkaProducerBackend(ProducerBackend):
             raise Exception(error)
         callback()
 
-    def write(self, msg: ReplicationEvent, callback: Callable[[], None]) -> None:
-        if isinstance(msg, ChangeMessage):
-            headers = {"table": msg.table}
-        else:
-            headers = {}
+    def write(self, msg: StreamMessage, callback: Callable[[], None]) -> None:
         self.__producer.produce(
             self.__topic,
             msg.payload,
             callback=functools.partial(self.__delivery_callback, callback),
-            headers=headers,
+            headers=msg.metadata if msg.metadata is not None else {},
         )
 
     def poll(self, timeout: float) -> None:
