@@ -1,17 +1,22 @@
 from abc import ABC, abstractmethod
-
 from contextlib import contextmanager
-from typing import Generator, IO, Sequence, Optional
+from enum import Enum
+from typing import IO, Generator, Optional, Sequence
 
 from cdc.snapshots.snapshot_types import (
+    DumpState,
     SnapshotDescriptor,
     SnapshotId,
     TableConfig,
     TableDumpFormat,
-    DumpState,
 )
-
 from cdc.utils.registry import Registry
+
+
+class FileMode(Enum):
+    READ = "read"
+    WRITE = "write"
+
 
 class SnapshotDestinationStorage(ABC):
     """
@@ -23,18 +28,19 @@ class SnapshotDestinationStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def write_metadata(self,
-        tables: Sequence[TableConfig],
-        snapshot: SnapshotDescriptor,
+    def write_metadata(
+        self, tables: Sequence[TableConfig], snapshot: SnapshotDescriptor
     ) -> None:
-        raise NotImplementedError            
+        raise NotImplementedError
 
     @abstractmethod
     @contextmanager
     def get_table_file(
         self,
-        table_name:str,
+        table_name: str,
         dump_format: TableDumpFormat,
+        mode: FileMode,
+        zip: bool = False,
     ) -> Generator[IO[bytes], None, None]:
         """
         Returns the open file we will use to dump the table

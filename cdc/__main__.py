@@ -129,6 +129,7 @@ def snapshot(ctx, snapshot_config):
                         "type": "object",
                         "properties": {
                             "table": {"type": "string"},
+                            "zip": {"type": "boolean"},
                             "columns": {
                                 "type": "array",
                                 "items": {

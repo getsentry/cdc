@@ -29,6 +29,7 @@ class TableConfig:
     """
 
     table: str
+    zip: bool
     columns: Optional[Sequence[ColumnConfig]]
 
     @classmethod
@@ -44,7 +45,7 @@ class TableConfig:
             else:
                 formatter = None
             columns.append(ColumnConfig(name=column["name"], formatter=formatter))
-        return TableConfig(content["table"], columns)
+        return TableConfig(content["table"], content["zip"], columns)
 
 
 class FormatterConfig(ABC):
