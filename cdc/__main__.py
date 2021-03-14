@@ -142,7 +142,10 @@ def snapshot(ctx, snapshot_config):
                                                     "type": "object",
                                                     "properties": {
                                                         "type": {"const": "datetime"},
-                                                        "format": {"type": "string"},
+                                                        "precision": {
+                                                            "type": "string",
+                                                            "enum": ["second"],
+                                                        },
                                                     },
                                                     "required": ["type", "format"],
                                                 }

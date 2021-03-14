@@ -1,6 +1,10 @@
 import yaml
-from cdc.snapshots.snapshot_types import (ColumnConfig,
-                                          DateTimeFormatterConfig, TableConfig)
+from cdc.snapshots.snapshot_types import (
+    ColumnConfig,
+    DateFormatPrecision,
+    DateTimeFormatterConfig,
+    TableConfig,
+)
 
 CONFIG = """
 tables:
@@ -12,11 +16,11 @@ tables:
             -   name: 'last_seen'
                 formatter:
                     type: 'datetime'
-                    format: '%Y-%m-%d %H:%M:%S'
+                    precision: 'second'
             -   name: 'first_seen'
                 formatter:
                     type: 'datetime'
-                    format: '%Y-%m-%d %H:%M:%S'
+                    precision: 'second'
 """
 
 
@@ -33,11 +37,11 @@ def test_table_config_load() -> None:
                 ColumnConfig(name="status"),
                 ColumnConfig(
                     name="last_seen",
-                    formatter=DateTimeFormatterConfig("%Y-%m-%d %H:%M:%S"),
+                    formatter=DateTimeFormatterConfig(DateFormatPrecision.SECOND),
                 ),
                 ColumnConfig(
                     name="first_seen",
-                    formatter=DateTimeFormatterConfig("%Y-%m-%d %H:%M:%S"),
+                    formatter=DateTimeFormatterConfig(DateFormatPrecision.SECOND),
                 ),
             ],
         )

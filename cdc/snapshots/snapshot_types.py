@@ -60,13 +60,18 @@ class FormatterConfig(ABC):
             raise ValueError("Unknown config for column formatter")
 
 
+class DateFormatPrecision(Enum):
+    SECOND = "second"
+    # Add more if/when needed
+
+
 @dataclass(frozen=True)
 class DateTimeFormatterConfig(FormatterConfig):
-    format: str
+    precision: DateFormatPrecision
 
     @classmethod
     def from_dict(cls, content: Mapping[str, str]) -> DateTimeFormatterConfig:
-        return DateTimeFormatterConfig(content["format"])
+        return DateTimeFormatterConfig(DateFormatPrecision(content["precision"]))
 
 
 @dataclass(frozen=True)

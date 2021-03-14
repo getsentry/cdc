@@ -13,6 +13,7 @@ from cdc.snapshots.destinations import SnapshotDestination, DumpState
 from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
 from cdc.snapshots.snapshot_types import (
     ColumnConfig,
+    DateFormatPrecision,
     DateTimeFormatterConfig,
     SnapshotDescriptor,
     SnapshotId,
@@ -92,7 +93,7 @@ def test_snapshot(dsn):
             columns=[
                 ColumnConfig("a"),
                 ColumnConfig("b"),
-                ColumnConfig("c", DateTimeFormatterConfig("%Y-%m-%d %H:%M:%S")),
+                ColumnConfig("c", DateTimeFormatterConfig(DateFormatPrecision.SECOND)),
             ],
         )
     ]

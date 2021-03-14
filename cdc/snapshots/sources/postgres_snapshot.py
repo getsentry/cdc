@@ -88,26 +88,10 @@ def format_column(column: ColumnConfig) -> sql.SQL:
         raise ValueError(f"Unknown formatter type {type(column.formatter)}")
 
 
-# We could add more mappings if needed, which is unlikely.
-DATETIME_MAPPING = {
-    re.escape("%Y"): "YYYY",
-    re.escape("%m"): "MM",
-    re.escape("%d"): "DD",
-    re.escape("%H"): "HH24",
-    re.escape("%M"): "MI",
-    re.escape("%S"): "SS",
-}
-
-DATETIME_REGEX = re.compile("|".join(DATETIME_MAPPING.keys()))
-
-
 def format_datetime(col_name: str, formatter: DateTimeFormatterConfig) -> sql.SQL:
-    postgres_format = DATETIME_REGEX.sub(
-        lambda match: DATETIME_MAPPING[match.group(0)], formatter.format
-    )
-    return sql.SQL("to_char({column}, {format}) AS {alias}").format(
+    return sql.SQL("DATE_TRUNC({precision} ,{column})::timestamp AS {alias}").format(
+        precision=sql.Literal(formatter.precision.value),
         column=sql.Identifier(col_name),
-        format=sql.Literal(postgres_format),
         alias=sql.Identifier(col_name),
     )
 
