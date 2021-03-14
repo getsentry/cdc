@@ -9,6 +9,7 @@ from cdc.snapshots.snapshot_types import (
 CONFIG = """
 tables:
     -   table: sentry_groupedmessage
+        zip: True
         columns:
             -   name: 'project_id'
             -   name: 'id'
@@ -31,6 +32,7 @@ def test_table_config_load() -> None:
     assert tables_config == [
         TableConfig(
             table="sentry_groupedmessage",
+            zip=True,
             columns=[
                 ColumnConfig(name="project_id"),
                 ColumnConfig(name="id"),

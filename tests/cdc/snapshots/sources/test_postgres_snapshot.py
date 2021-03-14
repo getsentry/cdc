@@ -10,7 +10,10 @@ from unittest.mock import MagicMock
 
 from cdc.snapshots.sources.postgres_snapshot import PostgresSnapshot
 from cdc.snapshots.destinations import SnapshotDestination, DumpState
-from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
+from cdc.snapshots.destinations.destination_storage import (
+    FileMode,
+    SnapshotDestinationStorage,
+)
 from cdc.snapshots.snapshot_types import (
     ColumnConfig,
     DateFormatPrecision,
@@ -38,7 +41,11 @@ class FakeDestination(SnapshotDestinationStorage):
 
     @contextmanager
     def get_table_file(
-        self, table_name: str, dump_format: TableDumpFormat
+        self,
+        table_name: str,
+        dump_format: TableDumpFormat,
+        mode: FileMode,
+        zip: bool = False,
     ) -> Generator[IO[bytes], None, None]:
         self.stream.write("START %s\n" % table_name)
         yield self.stream
@@ -90,6 +97,7 @@ def test_snapshot(dsn):
     tables = [
         TableConfig(
             table="test_snapshot",
+            zip=True,
             columns=[
                 ColumnConfig("a"),
                 ColumnConfig("b"),
@@ -114,6 +122,10 @@ def test_snapshot(dsn):
         "5,"
         "I am NULL"
         ",\n"
+        "END TABLE\n"
+        "START {table}\n"  # Reopen the file twice to compress the original file.
+        "START {table}\n"
+        "END TABLE\n"
         "END TABLE\n"
         "SNAPSHOT OVER\n"
     ).format(tables=tables, snapshot_id=str(snapshot_id), table="test_snapshot")
