@@ -46,3 +46,23 @@ def test_table_config_load() -> None:
             ],
         )
     ]
+
+    dictionaries = [t.to_dict() for t in tables_config]
+    assert dictionaries == [
+        {
+            "table": "sentry_groupedmessage",
+            "columns": [
+                {"name": "project_id"},
+                {"name": "id"},
+                {"name": "status"},
+                {
+                    "name": "last_seen",
+                    "formatter": {"type": "datetime", "precision": "second"},
+                },
+                {
+                    "name": "first_seen",
+                    "formatter": {"type": "datetime", "precision": "second"},
+                },
+            ],
+        }
+    ]
