@@ -78,7 +78,7 @@ class DirectorySnapshot(SnapshotDestinationStorage):
             "snapshot_id": self.id,
             "product": self.product,
             "transactions": asdict(snapshot),
-            "content": [asdict(t) for t in tables],
+            "content": [t.to_dict() for t in tables],
             "start_timestamp": timestamp,
         }
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping, NewType, Optional, Sequence
@@ -47,11 +47,22 @@ class TableConfig:
             columns.append(ColumnConfig(name=column["name"], formatter=formatter))
         return TableConfig(content["table"], content["zip"], columns)
 
+    def to_dict(self) -> Mapping[str, Any]:
+        return (
+            {"table": self.table}
+            if self.columns is None
+            else {"table": self.table, "columns": [c.to_dict() for c in self.columns]}
+        )
+
 
 class FormatterConfig(ABC):
     """
     Parent class to all the the formatter configs.
     """
+
+    @abstractmethod
+    def to_dict(self) -> Mapping[str, str]:
+        raise NotImplementedError
 
     @classmethod
     def from_dict(cls, content: Mapping[str, str]) -> FormatterConfig:
@@ -74,6 +85,9 @@ class DateTimeFormatterConfig(FormatterConfig):
     def from_dict(cls, content: Mapping[str, str]) -> DateTimeFormatterConfig:
         return DateTimeFormatterConfig(DateFormatPrecision(content["precision"]))
 
+    def to_dict(self) -> Mapping[str, str]:
+        return {"type": "datetime", "precision": self.precision.value}
+
 
 @dataclass(frozen=True)
 class ColumnConfig:
@@ -83,6 +97,13 @@ class ColumnConfig:
 
     name: str
     formatter: Optional[FormatterConfig] = None
+
+    def to_dict(self) -> Mapping[str, Any]:
+        return (
+            {"name": self.name}
+            if self.formatter is None
+            else {"name": self.name, "formatter": self.formatter.to_dict()}
+        )
 
 
 class DumpState(Enum):
