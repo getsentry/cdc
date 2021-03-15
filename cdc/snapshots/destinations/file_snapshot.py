@@ -82,14 +82,8 @@ class DirectorySnapshot(SnapshotDestinationStorage):
             "start_timestamp": timestamp,
         }
 
-        def safe_dump_default(value: Any) -> Any:
-            if isinstance(value, Enum):
-                return value.value
-            else:
-                raise TypeError
-
         with open(meta_file_name, "w") as meta_file:
-            json.dump(meta_content, meta_file, default=safe_dump_default)
+            json.dump(meta_content, meta_file)
 
     @contextmanager
     def get_table_file(
