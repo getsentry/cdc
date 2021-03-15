@@ -129,7 +129,32 @@ def snapshot(ctx, snapshot_config):
                         "type": "object",
                         "properties": {
                             "table": {"type": "string"},
-                            "columns": {"type": "array", "items": {"type": "string"}},
+                            "columns": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "format": {
+                                            "anyOf": [
+                                                # Each object provides a different formatter with different parameters
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "type": {"const": "datetime"},
+                                                        "precision": {
+                                                            "type": "string",
+                                                            "enum": ["second"],
+                                                        },
+                                                    },
+                                                    "required": ["type", "format"],
+                                                }
+                                            ]
+                                        },
+                                    },
+                                    "required": ["name"],
+                                },
+                            },
                         },
                         "required": ["table"],
                     },
@@ -139,9 +164,7 @@ def snapshot(ctx, snapshot_config):
         },
     )
 
-    tables_config = [
-        TableConfig(t["table"], t.get("columns")) for t in snapshot_config["tables"]
-    ]
+    tables_config = [TableConfig.from_dict(t) for t in snapshot_config["tables"]]
 
     coordinator = SnapshotCoordinator(
         source_registry.new(

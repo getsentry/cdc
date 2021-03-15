@@ -11,8 +11,17 @@ from unittest.mock import MagicMock
 from cdc.snapshots.sources.postgres_snapshot import PostgresSnapshot
 from cdc.snapshots.destinations import SnapshotDestination, DumpState
 from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
-from cdc.snapshots.snapshot_types import SnapshotDescriptor, SnapshotId, TableConfig, TableDumpFormat
+from cdc.snapshots.snapshot_types import (
+    ColumnConfig,
+    DateFormatPrecision,
+    DateTimeFormatterConfig,
+    SnapshotDescriptor,
+    SnapshotId,
+    TableConfig,
+    TableDumpFormat,
+)
 from cdc.testutils.fixtures import dsn
+
 
 class FakeDestination(SnapshotDestinationStorage):
     def __init__(self, snapshot_id: SnapshotId) -> None:
@@ -22,17 +31,14 @@ class FakeDestination(SnapshotDestinationStorage):
     def get_name(self) -> str:
         raise NotImplementedError
 
-    def write_metadata(self,
-        tables: Sequence[TableConfig],
-        snapshot: SnapshotDescriptor,
+    def write_metadata(
+        self, tables: Sequence[TableConfig], snapshot: SnapshotDescriptor
     ) -> None:
         self.stream.write("META %s %s\n" % (tables, self.id))
 
     @contextmanager
     def get_table_file(
-        self,
-        table_name:str,
-        dump_format: TableDumpFormat,
+        self, table_name: str, dump_format: TableDumpFormat
     ) -> Generator[IO[bytes], None, None]:
         self.stream.write("START %s\n" % table_name)
         yield self.stream
@@ -40,6 +46,7 @@ class FakeDestination(SnapshotDestinationStorage):
 
     def close(self, state: DumpState) -> None:
         self.stream.write("SNAPSHOT OVER\n")
+
 
 def test_snapshot(dsn):
     with closing(psycopg2.connect(dsn)) as connection:
@@ -52,17 +59,17 @@ def test_snapshot(dsn):
             cursor.execute(
                 # Basic data
                 "INSERT INTO test_snapshot (a, b, c) VALUES (%s, %s, %s)",
-                [1, 'test', '2019-06-16 06:21:39+00']
+                [1, "test", "2019-06-16 06:21:39+00"],
             )
             cursor.execute(
                 # NULL values
                 "INSERT INTO test_snapshot (a, b) VALUES (%s, %s)",
-                [2, 'test'],
+                [2, "test"],
             )
             cursor.execute(
                 # empty string
                 "INSERT INTO test_snapshot (a, b) VALUES (%s, %s)",
-                [3, ''],
+                [3, ""],
             )
             cursor.execute(
                 # escape characters
@@ -82,31 +89,33 @@ def test_snapshot(dsn):
     dest = SnapshotDestination(storage)
     tables = [
         TableConfig(
-            table= "test_snapshot",
-            columns= ["a", "b", "c"],
+            table="test_snapshot",
+            columns=[
+                ColumnConfig("a"),
+                ColumnConfig("b"),
+                ColumnConfig("c", DateTimeFormatterConfig(DateFormatPrecision.SECOND)),
+            ],
         )
     ]
     desc = snapshot.dump(dest, tables)
     dest.close()
-    
-    assert desc.xmax == desc.xmin # There should not be any running transaciton
+
+    assert desc.xmax == desc.xmin  # There should not be any running transaciton
     assert desc.xmin is not None
-    
+
     expected_output = (
         "META {tables} {snapshot_id}\n"
         "START {table}\n"
         "a,b,c\n"
-        "1,test,2019-06-16 06:21:39+00\n"
+        "1,test,2019-06-16 06:21:39\n"
         "2,test,\n"
         '3,"",\n'
         '4,"tes""t",\n'
-        '5,'"I am NULL"',\n'
+        "5,"
+        "I am NULL"
+        ",\n"
         "END TABLE\n"
         "SNAPSHOT OVER\n"
-    ).format(
-        tables=tables,
-        snapshot_id = str(snapshot_id),
-        table="test_snapshot"
-    )
+    ).format(tables=tables, snapshot_id=str(snapshot_id), table="test_snapshot")
 
     assert storage.stream.getvalue() == expected_output
