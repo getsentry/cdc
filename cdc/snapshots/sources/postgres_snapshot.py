@@ -89,7 +89,7 @@ def format_column(column: ColumnConfig) -> sql.SQL:
 
 
 def format_datetime(col_name: str, formatter: DateTimeFormatterConfig) -> sql.SQL:
-    return sql.SQL("DATE_TRUNC({precision} ,{column})::timestamp AS {alias}").format(
+    return sql.SQL("DATE_TRUNC({precision}, {column})::timestamp AS {alias}").format(
         precision=sql.Literal(formatter.precision.value),
         column=sql.Identifier(col_name),
         alias=sql.Identifier(col_name),
