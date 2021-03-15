@@ -1,14 +1,14 @@
-import jsonschema  # type: ignore
 import logging
+import shutil
 import uuid
-
 from abc import ABC, abstractmethod
-from typing import Any, AnyStr, IO, Mapping, Sequence
+from typing import IO, Any, AnyStr, Mapping, Sequence
 
-from cdc.snapshots.destinations import DestinationContext
-from cdc.snapshots.sources import SnapshotSource
+import jsonschema  # type: ignore
+from cdc.snapshots.destinations import DestinationContext, FileMode
 from cdc.snapshots.snapshot_control import SnapshotControl
-from cdc.snapshots.snapshot_types import SnapshotId, TableConfig
+from cdc.snapshots.snapshot_types import SnapshotId, TableConfig, TableDumpFormat
+from cdc.snapshots.sources import SnapshotSource
 from cdc.streams.producer import Producer as StreamProducer
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration

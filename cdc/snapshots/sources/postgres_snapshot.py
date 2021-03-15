@@ -19,7 +19,7 @@ from cdc.snapshots.snapshot_types import (
     TableDumpFormat,
     Xid,
 )
-from cdc.snapshots.destinations import SnapshotDestination
+from cdc.snapshots.destinations import FileMode, SnapshotDestination
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
 
@@ -54,7 +54,7 @@ class PostgresSnapshot(SnapshotSource):
 
             for table in tables:
                 table_name = table.table
-                with output.open_table(table_name, TableDumpFormat.CSV) as table_file:
+                with output.open_table(table, TableDumpFormat.CSV) as table_file:
                     logger.debug(
                         "Dumping table %s, using snapshot: %r...",
                         table,

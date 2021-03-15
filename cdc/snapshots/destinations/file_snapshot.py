@@ -1,26 +1,29 @@
 from __future__ import annotations
-from enum import Enum
 
-import jsonschema  # type: ignore
+import gzip
 import json
 import logging
 import tempfile
-
 from abc import ABC, abstractmethod
-from contextlib import contextmanager, closing
+from contextlib import closing, contextmanager
 from dataclasses import asdict
 from datetime import datetime
+from enum import Enum
 from os import mkdir, path
-from typing import Any, AnyStr, Generator, IO, Optional, Sequence
+from typing import IO, Any, AnyStr, Generator, Optional, Sequence
 
+import jsonschema  # type: ignore
 from cdc.snapshots.destinations import DestinationContext, SnapshotDestination
-from cdc.snapshots.destinations.destination_storage import SnapshotDestinationStorage
+from cdc.snapshots.destinations.destination_storage import (
+    FileMode,
+    SnapshotDestinationStorage,
+)
 from cdc.snapshots.snapshot_types import (
+    DumpState,
     SnapshotDescriptor,
     SnapshotId,
     TableConfig,
     TableDumpFormat,
-    DumpState,
 )
 from cdc.utils.logging import LoggerAdapter
 from cdc.utils.registry import Configuration
@@ -84,7 +87,11 @@ class DirectorySnapshot(SnapshotDestinationStorage):
 
     @contextmanager
     def get_table_file(
-        self, table_name: str, dump_format: TableDumpFormat
+        self,
+        table_name: str,
+        dump_format: TableDumpFormat,
+        mode: FileMode,
+        zip: bool = False,
     ) -> Generator[IO[bytes], None, None]:
         extensions = {
             TableDumpFormat.CSV: "csv",
@@ -95,8 +102,13 @@ class DirectorySnapshot(SnapshotDestinationStorage):
         file_name = path.join(
             self.__tables_dir, "%s.%s" % (table_name, extensions[dump_format])
         )
-        with open(file_name, "wb") as table_file:
-            yield table_file
+        file_mode = "wb" if mode == FileMode.WRITE else "rb"
+        if not zip:
+            with open(file_name, file_mode) as table_file:
+                yield table_file
+        else:
+            with gzip.open(f"{file_name}.gz", file_mode, compresslevel=5) as table_file:
+                yield table_file
 
     def close(self, state: DumpState) -> None:
         if state != DumpState.ERROR:
