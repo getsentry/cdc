@@ -53,6 +53,7 @@ def test_table_config_load() -> None:
     assert dictionaries == [
         {
             "table": "sentry_groupedmessage",
+            "zip": True,
             "columns": [
                 {"name": "project_id"},
                 {"name": "id"},

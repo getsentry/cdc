@@ -48,10 +48,11 @@ class TableConfig:
         return TableConfig(content["table"], content["zip"], columns)
 
     def to_dict(self) -> Mapping[str, Any]:
+        base = {"table": self.table, "zip": self.zip}
         return (
-            {"table": self.table}
+            base
             if self.columns is None
-            else {"table": self.table, "columns": [c.to_dict() for c in self.columns]}
+            else {**base, "columns": [c.to_dict() for c in self.columns]}
         )
 
 
