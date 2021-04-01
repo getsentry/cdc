@@ -28,4 +28,3 @@ services:
           python -m pytest -vv
     environment: 
       CDC_POSTGRES_DSN_TEMPLATE: "postgres://postgres:password@postgres:5432/{database}"
-    
