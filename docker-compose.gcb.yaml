@@ -1,0 +1,31 @@
+---
+version: '3.4'
+services:
+  postgres:
+    build: 
+      context: .github/workflows/postgres
+    command: 
+      - "postgres"
+      - "-c" 
+      - "wal_level=logical"
+      - "-c" 
+      - "max_replication_slots=1"
+      - "-c" 
+      - "max_wal_senders=1"
+    environment:
+      POSTGRES_PASSWORD: "password"
+  cdc-test:
+    depends_on:
+      - postgres
+    build: 
+      context: .
+      target: development
+    command:
+      - /bin/sh
+      - -c
+      - |
+          python tests/wait_for_postgres.py
+          python -m pytest -vv
+    environment: 
+      CDC_POSTGRES_DSN_TEMPLATE: "postgres://postgres:password@postgres:5432/{database}"
+    
