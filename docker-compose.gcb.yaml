@@ -41,10 +41,11 @@ services:
       - kafka
     build:
       context: .
-    # TODO: Make the cdc service retry connections to postgres.
+      target: applitcation    
     command:
       - /bin/sh
       - -c
+      # TODO: Make the cdc service retry connections to postgres.
       - |
           python integration-test/wait_for_postgres.py
           cdc -c /configuration-test.yaml producer
