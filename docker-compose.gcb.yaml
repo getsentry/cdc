@@ -2,6 +2,8 @@
 version: '3.4'
 services:
   postgres:
+  # TODO: Swap with an image containing wal2json when we will
+  # build and publish one.
     build: 
       context: .github/workflows/postgres
     command: 
@@ -14,9 +16,46 @@ services:
       - "max_wal_senders=1"
     environment:
       POSTGRES_PASSWORD: "password"
-  cdc-test:
+  zookeeper:
+    image: 'confluentinc/cp-zookeeper:5.1.2'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: '2181'
+      CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
+      ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: 'WARN'
+      ZOOKEEPER_TOOLS_LOG4J_LOGLEVEL: 'WARN'
+  kafka:
+    depends_on:
+      - zookeeper
+    image: 'confluentinc/cp-kafka:5.1.2'
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
+      KAFKA_LOG4J_LOGGERS: 'kafka.cluster=WARN,kafka.controller=WARN,kafka.coordinator=WARN,kafka.log=WARN,kafka.server=WARN,kafka.zookeeper=WARN,state.change.logger=WARN'
+      KAFKA_LOG4J_ROOT_LOGLEVEL: 'WARN'
+      KAFKA_TOOLS_LOG4J_LOGLEVEL: 'WARN'
+  cdc:
     depends_on:
       - postgres
+      - kafka
+    build:
+      context: .
+    # TODO: Make the cdc service retry connections to postgres.
+    command:
+      - /bin/sh
+      - -c
+      - |
+          python integration-test/wait_for_postgres.py
+          cdc -c /configuration-test.yaml producer
+    volumes:
+      - './integration-test/wait_for_postgres.py:/wait_for_postgres.py'
+      - './integration-test/configuration-test.yaml:/configuration-test.yaml'
+    environment: 
+      CDC_POSTGRES_DSN_TEMPLATE: "postgres://postgres:password@postgres:5432/{database}"
+  cdc-e2e-test:
+    depends_on:
+      - cdc
     build: 
       context: .
       target: development
@@ -24,7 +63,7 @@ services:
       - /bin/sh
       - -c
       - |
-          python tests/wait_for_postgres.py
-          python -m pytest -vv
+          python integration-test/wait_for_postgres.py
+          python -m pytest -vv -s integration-test/test_producer.py
     environment: 
       CDC_POSTGRES_DSN_TEMPLATE: "postgres://postgres:password@postgres:5432/{database}"

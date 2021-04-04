@@ -1,0 +1,62 @@
+version: 1
+
+logging:
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+        simple:
+            format: '%(asctime)s %(levelname)-8s %(message)s'
+    handlers:
+        stderr:
+            class: 'logging.StreamHandler'
+            formatter: 'simple'
+    root:
+        level: DEBUG
+        handlers:
+            - 'stderr'
+
+source:
+    backend:
+        type: postgres_logical
+        options:
+            dsn: 'postgres://postgres@postgres:5432/test_db'
+            slot:
+                name: 'cdc'
+                parser: 'default'
+                plugin: 'test_decoding'
+                create: true
+                options:
+                    include-xids: 'true'
+                    include-timestamp: 'true'
+
+snapshot:
+    source:
+        type: postgres
+        options:
+            dsn: 'postgres://postgres@postgres:5432/test_db'
+    control:
+        producer:
+            backend:
+                type: kafka
+                options:
+                    topic: test
+                    options:
+                        bootstrap.servers: 'kafka:9092'
+
+producer:
+    backend:
+        type: kafka
+        options:
+            topic: cdc
+            options:
+                bootstrap.servers: 'kafka:9092'
+
+dogstatsd:
+    host: localhost
+    port: 8125
+    message_sampling_rate: 0.1
+    task_sampling_rate: 1.0
+
+sentry:
+    enabled: false
+    dsn: 'http://KEY@host.docker.internal:8000/PROJECT'

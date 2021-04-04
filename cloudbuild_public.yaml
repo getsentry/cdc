@@ -15,14 +15,14 @@ steps:
       '--cache-from', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA',
       '.'
     ]
-# CDC tests
+# CDC end to end tests
 - name: 'gcr.io/$PROJECT_ID/docker-compose'
   args:
     - '-f'
     - 'docker-compose.gcb.yml'
     - run
     - '--rm'
-    - cdc-test
+    - cdc-e2e-test
 # Clean up after tests
 - name: 'gcr.io/$PROJECT_ID/docker-compose'
   args:
@@ -32,7 +32,6 @@ steps:
     - '--rmi'
     - 'local'
     - '-v'
-    - '--remove-orphans'
 # Only tag "nightly" when on master
 - name: 'gcr.io/cloud-builders/docker'
   secretEnv: ['DOCKER_PASSWORD']
@@ -56,9 +55,6 @@ images:
     "us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA",
   ]
 timeout: 3600s
-options:
-  # Run on bigger machines
-  machineType: "N1_HIGHCPU_8"
 secrets:
 - kmsKeyName: projects/sentryio/locations/global/keyRings/service-credentials/cryptoKeys/cloudbuild
   secretEnv:
