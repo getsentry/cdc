@@ -13,6 +13,7 @@ steps:
       '-t', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:nightly',
       '--cache-from', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:nightly',
       '--cache-from', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA',
+      '--target', 'application',
       '.'
     ]
 # CDC end to end tests
