@@ -4,8 +4,7 @@ services:
   postgres:
   # TODO: Swap with an image containing wal2json when we will
   # build and publish one.
-    build: 
-      context: .github/workflows/postgres
+    image: postgres:9.6-alpine
     command: 
       - "postgres"
       - "-c" 
@@ -16,6 +15,8 @@ services:
       - "max_wal_senders=1"
     environment:
       POSTGRES_PASSWORD: "password"
+    volumes:
+      - .github/workflows/postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
   zookeeper:
     image: 'confluentinc/cp-zookeeper:5.1.2'
     environment:
@@ -41,7 +42,7 @@ services:
       - kafka
     build:
       context: .
-      target: applitcation    
+      target: application    
     command:
       - /bin/sh
       - -c

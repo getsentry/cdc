@@ -17,7 +17,13 @@ for i in range(1, 11):
         ) as connection:
             connection.autocommit = True
             with connection.cursor() as cursor:
-                cursor.execute(SQL("CREATE DATABASE {}").format(Identifier("test_db")))
+                cursor.execute(
+                    "SELECT datname FROM pg_database WHERE datname='test_db'"
+                )
+                if cursor.fetchone() is None:
+                    cursor.execute(
+                        SQL("CREATE DATABASE {}").format(Identifier("test_db"))
+                    )
 
         exit(0)
     except Exception as e:
