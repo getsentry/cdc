@@ -45,7 +45,6 @@ services:
       - /bin/sh
       - -c
       - |
-          pip install pytest
           python integration-test/wait_for_postgres.py
           cdc -c /configuration-test.yaml producer
     volumes:
@@ -61,6 +60,7 @@ services:
       - /bin/sh
       - -c
       - |
+          pip install pytest
           python integration-test/wait_for_postgres.py
           python -m pytest -vv -s integration-test/test_producer.py
     environment: 
