@@ -40,9 +40,7 @@ services:
     depends_on:
       - postgres
       - kafka
-    build:
-      context: .
-      target: application    
+    image: $CDC_IMAGE
     command:
       - /bin/sh
       - -c

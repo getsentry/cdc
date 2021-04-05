@@ -1,23 +1,20 @@
 steps:
-- name: 'gcr.io/cloud-builders/docker'
-  entrypoint: 'bash'
-  args: [
-    '-c',
-    'docker pull us.gcr.io/$PROJECT_ID/$REPO_NAME:nightly || true',
-  ]
-- name: 'gcr.io/cloud-builders/docker'
-  args: 
+- name: 'gcr.io/kaniko-project/executor:v1.5.1'
+  id: runtime-image
+  args:
     [
-      'build',
-      '-t', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA',
-      '-t', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:nightly',
-      '--cache-from', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:nightly',
-      '--cache-from', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA',
-      '--target', 'application',
-      '.'
+      '--cache=true',
+      '--build-arg',
+      'SOURCE_COMMIT=$COMMIT_SHA',
+      '--destination=$$BASE_IMAGE:$COMMIT_SHA',
+      '-f', './docker/Dockerfile',
+      '--target=application'
     ]
+  timeout: 180s
 # CDC end to end tests
 - name: 'gcr.io/$PROJECT_ID/docker-compose'
+  env:
+    - 'CDC_IMAGE=$$BASE_IMAGE:$COMMIT_SHA'
   args:
     - '-f'
     - 'docker-compose.gcb.yml'
@@ -43,19 +40,22 @@ steps:
   - |
     # Only push to Docker Hub from master
     [ "$BRANCH_NAME" != "master" ] && exit 0
-    docker push us.gcr.io/$PROJECT_ID/$REPO_NAME:nightly
+    docker pull $$BASE_IMAGE:$COMMIT_SHA 
     echo "$$DOCKER_PASSWORD" | docker login --username=sentrybuilder --password-stdin
-    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$SHORT_SHA
+    docker tag $$BASE_IMAGE:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$SHORT_SHA
     docker push $PROJECT_ID/$REPO_NAME:$SHORT_SHA
-    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
+    docker tag $$BASE_IMAGE:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
     docker push $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
-    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:nightly
+    docker tag $$BASE_IMAGE:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:nightly
     docker push $PROJECT_ID/$REPO_NAME:nightly
 images:
   [
     "us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA",
   ]
-timeout: 3600s
+timeout: 900s
+options:
+  env:
+    - 'BASE_IMAGE=us.gcr.io/$PROJECT_ID/$REPO_NAME'
 secrets:
 - kmsKeyName: projects/sentryio/locations/global/keyRings/service-credentials/cryptoKeys/cloudbuild
   secretEnv:
