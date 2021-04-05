@@ -7,7 +7,7 @@ steps:
       '--build-arg',
       'SOURCE_COMMIT=$COMMIT_SHA',
       '--destination=$$BASE_IMAGE:$COMMIT_SHA',
-      '-f', './docker/Dockerfile',
+      '-f', './Dockerfile',
       '--target=application'
     ]
   timeout: 180s
