@@ -17,7 +17,7 @@ steps:
     - 'CDC_IMAGE=$$BASE_IMAGE:$COMMIT_SHA'
   args:
     - '-f'
-    - 'docker-compose.gcb.yml'
+    - 'docker-compose.gcb.yaml'
     - run
     - '--rm'
     - cdc-e2e-test
@@ -25,7 +25,7 @@ steps:
 - name: 'gcr.io/$PROJECT_ID/docker-compose'
   args:
     - '-f'
-    - 'docker-compose.gcb.yml'
+    - 'docker-compose.gcb.yaml'
     - down
     - '--rmi'
     - 'local'
