@@ -14,7 +14,7 @@ steps:
 # CDC end to end tests
 - name: 'gcr.io/$PROJECT_ID/docker-compose'
   env:
-    - 'CDC_IMAGE=$$BASE_IMAGE:$COMMIT_SHA'
+    - 'CDC_IMAGE=us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA'
   args:
     - '-f'
     - 'docker-compose.gcb.yaml'
@@ -40,22 +40,19 @@ steps:
   - |
     # Only push to Docker Hub from master
     [ "$BRANCH_NAME" != "master" ] && exit 0
-    docker pull $$BASE_IMAGE:$COMMIT_SHA 
+    docker pull us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA 
     echo "$$DOCKER_PASSWORD" | docker login --username=sentrybuilder --password-stdin
-    docker tag $$BASE_IMAGE:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$SHORT_SHA
+    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$SHORT_SHA
     docker push $PROJECT_ID/$REPO_NAME:$SHORT_SHA
-    docker tag $$BASE_IMAGE:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
+    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
     docker push $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
-    docker tag $$BASE_IMAGE:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:nightly
+    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:nightly
     docker push $PROJECT_ID/$REPO_NAME:nightly
 images:
   [
     "us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA",
   ]
 timeout: 900s
-options:
-  env:
-    - 'BASE_IMAGE=us.gcr.io/$PROJECT_ID/$REPO_NAME'
 secrets:
 - kmsKeyName: projects/sentryio/locations/global/keyRings/service-credentials/cryptoKeys/cloudbuild
   secretEnv:
