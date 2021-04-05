@@ -44,7 +44,6 @@ services:
     command:
       - /bin/sh
       - -c
-      # TODO: Make the cdc service retry connections to postgres.
       - |
           python integration-test/wait_for_postgres.py
           cdc -c /configuration-test.yaml producer
