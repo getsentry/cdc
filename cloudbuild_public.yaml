@@ -23,6 +23,8 @@ steps:
     - cdc-e2e-test
 # Clean up after tests
 - name: 'gcr.io/$PROJECT_ID/docker-compose'
+  env:
+    - 'CDC_IMAGE=us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA'
   args:
     - '-f'
     - 'docker-compose.gcb.yaml'
