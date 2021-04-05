@@ -56,9 +56,7 @@ services:
   cdc-e2e-test:
     depends_on:
       - cdc
-    build: 
-      context: .
-      target: development
+    image: $CDC_IMAGE
     command:
       - /bin/sh
       - -c
