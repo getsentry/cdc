@@ -9,7 +9,6 @@ steps:
   args: [
             'build',
             '--pull',
-            '--target', 'application',
             '-t', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:latest',
             '-t', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA',
             '--cache-from', 'us.gcr.io/$PROJECT_ID/$REPO_NAME:latest',
