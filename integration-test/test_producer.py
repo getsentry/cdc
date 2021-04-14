@@ -29,7 +29,6 @@ def test_producer() -> None:
     with closing(
         psycopg2.connect(DSN_TEMPLATE.format(database="test_db"))
     ) as connection:
-        _wait_for_slot()
         with connection.cursor() as cursor:
             cursor.execute(
                 "CREATE TABLE test_producer (a integer, b text, c timestamptz, primary key(a))"
