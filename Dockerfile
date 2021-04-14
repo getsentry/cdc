@@ -1,4 +1,4 @@
-FROM python:3.7-slim AS application
+FROM python:3.7-slim
 
 RUN groupadd -r cdc && useradd -r -g cdc cdc
 
@@ -67,7 +67,3 @@ RUN pip install -e .
 
 ENTRYPOINT ["/usr/src/app/docker-entrypoint.sh"]
 CMD ["cdc"]
-
-FROM application AS development
-
-RUN pip install -r requirements-dev.txt

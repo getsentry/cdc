@@ -50,6 +50,7 @@ steps:
     docker push $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
     docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:nightly
     docker push $PROJECT_ID/$REPO_NAME:nightly
+# This is needed for Freight to find matching builds
 images:
   [
     "us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA",

@@ -2,8 +2,6 @@
 version: '3.4'
 services:
   postgres:
-  # TODO: Swap with an image containing wal2json when we will
-  # build and publish one.
     image: postgres:9.6-alpine
     command: 
       - "postgres"
