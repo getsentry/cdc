@@ -42,20 +42,24 @@ steps:
   - |
     # Only push to Docker Hub from master
     [ "$BRANCH_NAME" != "master" ] && exit 0
-    docker pull us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA 
+    docker pull $$SENTRY_IMAGE 
     echo "$$DOCKER_PASSWORD" | docker login --username=sentrybuilder --password-stdin
-    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$SHORT_SHA
-    docker push $PROJECT_ID/$REPO_NAME:$SHORT_SHA
-    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
-    docker push $PROJECT_ID/$REPO_NAME:$COMMIT_SHA
-    docker tag us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA $PROJECT_ID/$REPO_NAME:nightly
-    docker push $PROJECT_ID/$REPO_NAME:nightly
+    docker tag $$SENTRY_IMAGE $$DOCKER_REPO:$SHORT_SHA
+    docker push $$DOCKER_REPO:$SHORT_SHA
+    docker tag $$SENTRY_IMAGE $$DOCKER_REPO:$COMMIT_SHA
+    docker push $$DOCKER_REPO:$COMMIT_SHA
+    docker tag $$SENTRY_IMAGE $$DOCKER_REPO:nightly
+    docker push $$DOCKER_REPO:nightly
 # This is needed for Freight to find matching builds
 images:
   [
     "us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA",
   ]
 timeout: 900s
+options:
+  env:
+    - 'SENTRY_IMAGE=us.gcr.io/$PROJECT_ID/$REPO_NAME:$COMMIT_SHA'
+    - 'DOCKER_REPO=getsentry/$REPO_NAME'
 secrets:
 - kmsKeyName: projects/sentryio/locations/global/keyRings/service-credentials/cryptoKeys/cloudbuild
   secretEnv:
