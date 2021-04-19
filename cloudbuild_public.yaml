@@ -41,7 +41,7 @@ steps:
   - '-c'
   - |
     # Only push to Docker Hub from master
-    # [ "$BRANCH_NAME" != "master" ] && exit 0
+    [ "$BRANCH_NAME" != "master" ] && exit 0
     docker pull $$CDC_IMAGE 
     echo "$$DOCKER_PASSWORD" | docker login --username=sentrybuilder --password-stdin
     docker tag $$CDC_IMAGE $$DOCKER_REPO:$SHORT_SHA
