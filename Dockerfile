@@ -1,4 +1,4 @@
-FROM python:3.7-slim AS application
+FROM python:3.8-slim AS application
 
 RUN groupadd -r cdc && useradd -r -g cdc cdc
 

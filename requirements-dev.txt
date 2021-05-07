@@ -1,5 +1,5 @@
 black==19.3b0
 mock==3.0.5
-mypy==0.670
+mypy==0.800
 pyflakes==2.1.1
-pytest==4.5.0
+pytest==5.2.4
