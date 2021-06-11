@@ -1,0 +1,24 @@
+minVersion: "0.21.1"
+
+github:
+  owner: getsentry
+  repo: cdc
+# TODO: Add a changelog
+changelogPolicy: none
+
+artifactProvider:
+  name: none
+
+preReleaseCommand: ''
+
+targets:
+  - name: github
+  - id: release
+    name: docker
+    source: us.gcr.io/sentryio/cdc
+    target: getsentry/cdc
+  - id: latest
+    name: docker
+    source: us.gcr.io/sentryio/cdc
+    target: getsentry/cdc
+    targetFormat: '{{{target}}}:latest'
