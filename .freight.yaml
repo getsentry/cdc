@@ -9,5 +9,5 @@ steps:
   selector:
     label_selector: service=cdc
   containers:
-  - image: us.gcr.io/internal-sentry/github_getsentry_cdc:{sha}
+  - image: us.gcr.io/sentryio/cdc:{sha}
     name: producer
