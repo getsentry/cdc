@@ -1,4 +1,4 @@
-minVersion: "0.20.0"
+minVersion: "0.21.1"
 
 github:
   owner: getsentry
@@ -8,8 +8,6 @@ changelogPolicy: none
 
 artifactProvider:
   name: none
-statusProvider:
-  name: github
 
 preReleaseCommand: ''
 
