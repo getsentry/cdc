@@ -1,13 +1,15 @@
-minVersion: "0.21.1"
+minVersion: 0.24.2
 
-github:
-  owner: getsentry
-  repo: cdc
 # TODO: Add a changelog
 changelogPolicy: none
 
 artifactProvider:
   name: none
+statusProvider:
+  name: github
+  contexts:
+    - 'Run tests'
+    - 'cdc-branch-push (sentryio)'
 
 preReleaseCommand: ''
 
