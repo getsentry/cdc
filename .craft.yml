@@ -7,9 +7,10 @@ artifactProvider:
   name: none
 statusProvider:
   name: github
-  contexts:
-    - 'Run tests'
-    - 'cdc-branch-push (sentryio)'
+  config:
+    contexts:
+      - 'Run tests'
+      - 'cdc-branch-push (sentryio)'
 
 preReleaseCommand: ''
 
