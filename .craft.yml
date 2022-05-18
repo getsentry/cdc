@@ -1,0 +1,27 @@
+minVersion: 0.24.2
+
+# TODO: Add a changelog
+changelogPolicy: none
+
+artifactProvider:
+  name: none
+statusProvider:
+  name: github
+  config:
+    contexts:
+      - 'Run tests'
+      - 'cdc-branch-push (sentryio)'
+
+preReleaseCommand: ''
+
+targets:
+  - name: github
+  - id: release
+    name: docker
+    source: us.gcr.io/sentryio/cdc
+    target: getsentry/cdc
+  - id: latest
+    name: docker
+    source: us.gcr.io/sentryio/cdc
+    target: getsentry/cdc
+    targetFormat: '{{{target}}}:latest'
