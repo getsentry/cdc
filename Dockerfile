@@ -37,8 +37,8 @@ RUN set -x \
         wget \
     " \
     && apt-get update && apt-get install -y --no-install-recommends $fetchDeps && rm -rf /var/lib/apt/lists/* \
-    && wget -O /usr/local/bin/tini "https://github.com/krallin/tini/releases/download/v$TINI_VERSION/tini" \
-    && wget -O /usr/local/bin/tini.asc "https://github.com/krallin/tini/releases/download/v$TINI_VERSION/tini.asc" \
+    && wget -O /usr/local/bin/tini "https://github.com/krallin/tini/releases/download/v$TINI_VERSION/tini-$(dpkg --print-architecture)" \
+    && wget -O /usr/local/bin/tini.asc "https://github.com/krallin/tini/releases/download/v$TINI_VERSION/tini-$(dpkg --print-architecture).asc" \
     && export GNUPGHOME="$(mktemp -d)" \
     && for key in \
       595E85A6B1B4779EA4DAAEC70B588DFF0527A9B7 \
@@ -58,7 +58,13 @@ RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
 COPY requirements.txt /usr/src/app/
-RUN pip install -r requirements.txt
+RUN set -x \
+    && deps='gcc librdkafka-dev libc-dev' \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $deps \
+    && pip install -r requirements.txt \
+    && apt-get purge -y --auto-remove $deps \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY . /usr/src/app
 ENV PATH /usr/src/app/bin:$PATH
@@ -70,4 +76,10 @@ CMD ["cdc"]
 
 FROM application AS development
 
-RUN pip install -r requirements-dev.txt
+RUN set -x \
+    && deps='gcc' \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $deps \
+    && pip install -r requirements-dev.txt \
+    && apt-get purge -y --auto-remove $deps \
+    && rm -rf /var/lib/apt/lists/*
