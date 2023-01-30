@@ -25,6 +25,7 @@ pipelines:
                   fetch_materials: true
                   jobs:
                       checks:
+                          timeout: 1200
                           elastic_profile_id: cdc
                           tasks:
                               - script: |
