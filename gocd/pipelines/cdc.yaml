@@ -1,0 +1,50 @@
+# More information on gocd-flavor YAML can be found here:
+# - https://github.com/tomzo/gocd-yaml-config-plugin#pipeline
+# - https://www.notion.so/sentry/GoCD-New-Service-Quickstart-6d8db7a6964049b3b0e78b8a4b52e25d
+format_version: 10
+pipelines:
+    deploy-cdc:
+        environment_variables:
+            GCP_PROJECT: internal-sentry
+            GKE_CLUSTER: zdpwkxst
+            GKE_REGION: us-central1
+            GKE_CLUSTER_ZONE: b
+            GKE_BASTION_ZONE: b
+        group: cdc
+        lock_behavior: unlockWhenFinished
+        materials:
+            cdc_repo:
+                git: git@github.com:getsentry/cdc.git
+                shallow_clone: true
+                branch: master
+                destination: cdc
+        stages:
+            - checks:
+                  approval:
+                      type: manual
+                  fetch_materials: true
+                  jobs:
+                      checks:
+                          timeout: 1200
+                          elastic_profile_id: cdc
+                          tasks:
+                              - script: |
+                                    /devinfra/scripts/checks/googlecloud/checkcloudbuild.py \
+                                    ${GO_REVISION_CDC_REPO} \
+                                    sentryio \
+                                    "us.gcr.io/sentryio/cdc"
+            - deploy:
+                  approval:
+                      type: manual
+                  fetch_materials: true
+                  jobs:
+                      deploy:
+                          timeout: 1200
+                          elastic_profile_id: cdc
+                          tasks:
+                              - script: |
+                                    /devinfra/scripts/k8s/k8stunnel \
+                                    && /devinfra/scripts/k8s/k8sdeploy.py \
+                                    --label-selector="service=cdc" \
+                                    --image="us.gcr.io/sentryio/cdc:${GO_REVISION_CDC_REPO}" \
+                                    --container-name="producer"
