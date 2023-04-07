@@ -44,7 +44,7 @@ pipelines:
                           tasks:
                               - script: |
                                     /devinfra/scripts/k8s/k8stunnel \
-                                    && /devinfra/scripts/k8s/k8sdeploy.py \
+                                    && /devinfra/scripts/k8s/k8s-deploy.py \
                                     --label-selector="service=cdc" \
                                     --image="us.gcr.io/sentryio/cdc:${GO_REVISION_CDC_REPO}" \
                                     --container-name="producer"
