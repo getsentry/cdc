@@ -4,4 +4,4 @@ confluent-kafka==0.11.6
 datadog==0.21.0
 jsonschema==3.0.1
 psycopg2-binary==2.9.3
-sentry-sdk==0.7.14
+sentry-sdk==1.14.0
